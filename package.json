@@ -1,0 +1,23 @@
+﻿{
+    "name":  "juego-td-abejas",
+    "version":  "1.0.0",
+    "description":  "",
+    "main":  "index.js",
+    "scripts":  {
+                    "dev":  "vite --host",
+                    "build":  "vite build",
+                    "preview":  "vite preview --host"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "dependencies":  {
+                         "phaser":  "^4.2.1"
+                     },
+    "devDependencies":  {
+                            "vite":  "^8.3.8"
+                        },
+    "type":  "module"
+}

@@ -1,0 +1,7 @@
+node_modules/
+dist/
+# material de terceros y de trabajo: no se publica (licencias de los packs de arte, pruebas, documentos)
+recursos-originales/
+recursos-ia/
+Diseños IA/
+*.pdf
