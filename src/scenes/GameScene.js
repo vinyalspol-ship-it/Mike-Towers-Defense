@@ -10,6 +10,7 @@ import { bindMusicKey } from '../music.js';
 import { playFx } from '../art.js';
 import { NewTowers, NEW_TYPES } from '../newTowers.js';
 import { DEV_TOOLS } from '../devMode.js';
+import { addFullscreenButton } from '../fullscreen.js';
 import { TOWER_ART } from '../towerArt.js';
 
 const dist2 = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
@@ -383,6 +384,7 @@ export default class GameScene extends Phaser.Scene {
       },
       { fontSize: 14, fill: 0x555555, depth: 42 }
     );
+    addFullscreenButton(this, 1166, 6, 32, 36, 42); // pantalla completa
     makeButton(this, 1200, 6, 64, 36, 'Salir', () => this.scene.start('Menu'), { fontSize: 15, fill: 0x7b241c, depth: 42 });
 
     // panel inferior de madera

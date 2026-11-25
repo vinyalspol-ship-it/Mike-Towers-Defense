@@ -5,6 +5,7 @@ import { LEVELS } from '../data/levels.js';
 import { load, save, reset } from '../storage.js';
 import { makeButton, title } from '../ui.js';
 import { musicOn, toggleMusic, bindMusicKey } from '../music.js';
+import { addFullscreenButton } from '../fullscreen.js';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -119,6 +120,7 @@ export default class MenuScene extends Phaser.Scene {
     const paintMusic = (on) => musIcon.setFrame(on ? 5 : 8).setAlpha(on ? 1 : 0.7);
     paintMusic(musicOn());
     bindMusicKey(this, paintMusic);
+    addFullscreenButton(this, W - 62 - 58, 8, 52, 38, 20); // pantalla completa (junto al botón de música)
 
     makeButton(this, 750, 506, 230, 70, '⚔ Equipo', () => this.scene.start('Team'), { fill: 0x2f6f4a, fontSize: 26, depth: 20 });
     makeButton(this, 996, 506, 244, 70, '📖 Códice', () => this.scene.start('Codex'), { fill: 0x7b3f8f, fontSize: 26, depth: 20 });

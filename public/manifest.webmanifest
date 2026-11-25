@@ -1,0 +1,28 @@
+{
+  "name": "Zombies Must Come Down: TWD",
+  "short_name": "Zombies TD",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "landscape",
+  "background_color": "#2e1c0f",
+  "theme_color": "#2e1c0f",
+  "icons": [
+    {
+      "src": "assets/game/avatar_01.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/game/avatar_01.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
