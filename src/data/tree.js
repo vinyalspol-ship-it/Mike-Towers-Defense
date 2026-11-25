@@ -65,7 +65,7 @@ const CHAR_ANGLE = { barbaro: -90, elfo: -30, alquimista: 30, mago: 90 };
 // Bárbaro y Elfo gratis; el resto cuestan cerebros (1 cerebro por nivel superado por primera vez)
 const CHAR_COST = { barbaro: 0, elfo: 0, alquimista: 1, mago: 1, lancero: 1, monje: 1, ingeniero: 1, asedio: 1, midas: 2, nigromante: 2, druida: 2 };
 // Nodo que hay que tener antes de poder desbloquear la defensa (las que no aparecen cuelgan del nodo central)
-const GATE = { ingeniero: 'bar_C4', asedio: 'bar_A4', nigromante: 'mag_C4', druida: 'mag_A4', monje: 'alq_C4', midas: 'rich_3' };
+const GATE = { lancero: ['elf_A4', 'elf_B4', 'elf_C4'], ingeniero: 'bar_C4', asedio: 'bar_A4', nigromante: 'mag_C4', druida: 'mag_A4', monje: 'alq_C4', midas: 'rich_3' };
 const BEND = 9; // grados que se curva cada nivel hacia dentro (evita que se solapen los últimos nodos)
 const TIER_COST = [8, 20, 45, 80];
 const TIER1_COST = { barbaro: 6, elfo: 8, alquimista: 8, mago: 10, lancero: 10, monje: 12, ingeniero: 9, asedio: 13, midas: 16, nigromante: 15, druida: 12 }; // nivel 1
@@ -102,7 +102,7 @@ for (const id of TOWER_ORDER) {
     };
     let best = null;
     if (GATE[id]) {
-      const gp = NODES[GATE[id]];
+      const gp = NODES[Array.isArray(GATE[id]) ? GATE[id][0] : GATE[id]];
       const out = (Math.atan2(gp.y, gp.x) * 180) / Math.PI;
       gsearch: for (let R = 110; R <= 520; R += 20) {
         for (const dl of [0, 15, -15, 30, -30, 45, -45, 60, -60, 80, -80, 100, -100, 130, -130, 160, 180]) {
@@ -127,7 +127,7 @@ for (const id of TOWER_ORDER) {
   const charId = 'char_' + t.short;
   // línea de unión: con el nodo más cercano (para las defensas nuevas, que están lejos del centro)
   let parent = 'root';
-  if (GATE[id]) parent = GATE[id];
+  if (GATE[id]) parent = Array.isArray(GATE[id]) ? GATE[id][0] : GATE[id];
   else if (CHAR_ANGLE[id] === undefined) {
     let bd = 1e9;
     for (const [nid, n] of Object.entries(NODES)) {
@@ -140,12 +140,13 @@ for (const id of TOWER_ORDER) {
   }
   add(charId, {
     name: t.name,
-    desc: CHAR_COST[id] ? `Cuesta ${CHAR_COST[id]} cerebro${CHAR_COST[id] > 1 ? 's' : ''}.${GATE[id] ? ` Se desbloquea tras: ${NODES[GATE[id]].name}.` : ''} Desbloquea al ${t.name}: podrás construirlo en las partidas y mejorarlo con sus 3 caminos.` : `${t.name}: disponible desde el principio. Mejóralo con sus 3 caminos.`,
+    desc: CHAR_COST[id] ? `Cuesta ${CHAR_COST[id]} cerebro${CHAR_COST[id] > 1 ? 's' : ''}.${GATE[id] ? ` Se desbloquea tras: ${Array.isArray(GATE[id]) ? 'cualquier mejora de nivel 4 del Elfo' : NODES[GATE[id]].name}.` : ''} Desbloquea al ${t.name}: podrás construirlo en las partidas y mejorarlo con sus 3 caminos.` : `${t.name}: disponible desde el principio. Mejóralo con sus 3 caminos.`,
     cost: CHAR_COST[id],
     cur: CHAR_COST[id] ? 'brains' : 'coins',
     icon: t.emoji,
     kind: 'char',
-    req: GATE[id] ? ['root', GATE[id]] : ['root'],
+    req: GATE[id] && !Array.isArray(GATE[id]) ? ['root', GATE[id]] : ['root'],
+    reqAny: Array.isArray(GATE[id]) ? GATE[id] : undefined, // basta con tener UNO de estos nodos
     parent,
     color: t.color,
     tower: id,
@@ -226,6 +227,9 @@ export const FREE_NODES = ['char_bar', 'char_elf']; // vienen desbloqueados
 
 export const has = (s, id) => !!s.nodes[id];
 
+// ¿Se cumplen todos los requisitos del nodo? (req: todos; reqAny: al menos uno)
+export const reqOk = (s, n) => n.req.every((r) => has(s, r)) && (!n.reqAny || n.reqAny.some((r) => has(s, r)));
+
 // Defensas distintas que se pueden llevar a una batalla (3 + espacios del árbol)
 export const maxSlots = (s) => BASE_SLOTS + [4, 5, 6].filter((n) => has(s, 'slot_' + n)).length;
 
@@ -256,6 +260,7 @@ export function whyNot(s, id) {
   const n = NODES[id];
   if (has(s, id)) return 'Ya comprado';
   for (const r of n.req) if (!has(s, r)) return 'Antes necesitas: ' + NODES[r].name;
+  if (n.reqAny && !n.reqAny.some((r) => has(s, r))) return 'Antes necesitas una mejora de nivel 4 del Elfo (la que sea)';
   if (n.excl && has(s, n.excl)) return 'Ya elegiste la otra rama extra';
   const have = n.cur === 'brains' ? s.brains : s.coins;
   if (have < n.cost) return n.cur === 'brains' ? 'Te falta un cerebro 🧠 (1 por cada nivel superado por primera vez)' : `Te faltan ${n.cost - have} monedas`;

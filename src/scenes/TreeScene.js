@@ -1,8 +1,12 @@
 import Phaser from 'phaser';
 import { W, H, FONT, EMOJI_FONT, COL } from '../config.js';
-import { NODES, has, whyNot, buy, FREE_NODES } from '../data/tree.js';
+import { NODES, has, whyNot, buy, FREE_NODES, reqOk } from '../data/tree.js';
+import { TOWERS } from '../data/towers.js';
+import { TOWER_ART } from '../towerArt.js';
+import { TOWER_BLURB } from '../data/blurbs.js';
+import { glossaryFor } from '../data/glossary.js';
 import { load, save } from '../storage.js';
-import { makeButton, title } from '../ui.js';
+import { makeButton, title, woodPanel, infoIcon, hideTip } from '../ui.js';
 import { bindMusicKey } from '../music.js';
 
 let lastZoom = 1; // zoom del árbol (rueda del ratón), se conserva entre recargas
@@ -19,6 +23,7 @@ export default class TreeScene extends Phaser.Scene {
   init(data) {
     this.selected = (data && data.selected) || null;
     this.msg = (data && data.msg) || '';
+    this.unlocked = (data && data.unlocked) || null; // defensa recién desbloqueada (muestra su descripción)
   }
 
   create() {
@@ -53,18 +58,26 @@ export default class TreeScene extends Phaser.Scene {
     this.buildUi();
     if (this.selected) this.showInfo(this.selected);
     if (this.msg) this.info.setText(this.msg);
+    if (this.unlocked) this.showUnlock(this.unlocked);
   }
 
   // Niebla: un nodo se ve si está comprado o si ya se cumplen sus requisitos (es de los siguientes por comprar)
   isVisible(id) {
     if (FREE_NODES.includes(id) && !has(this.sv, 'root')) return false; // Bárbaro y Elfo: ? hasta comprar el Cuartel
-    return has(this.sv, id) || NODES[id].req.every((r) => has(this.sv, r));
+    return has(this.sv, id) || reqOk(this.sv, NODES[id]);
   }
 
   // Nodo "fantasma": aún no se puede comprar, pero cuelga de uno visible. Se ve gris con un "?" (hay más por descubrir)
   isGhost(id) {
     const n = NODES[id];
-    return !this.isVisible(id) && !!n.parent && this.isVisible(n.parent);
+    if (this.isVisible(id)) return false;
+    return n.reqAny ? n.reqAny.some((r) => this.isVisible(r)) : !!n.parent && this.isVisible(n.parent);
+  }
+
+  // nodo con el que se une la línea (si hay varias opciones, el que ya tienes)
+  linkParent(id) {
+    const n = NODES[id];
+    return n.reqAny ? n.reqAny.find((r) => has(this.sv, r)) || n.parent : n.parent;
   }
 
   // ------------------------------------------------------------------ DIBUJO
@@ -77,9 +90,10 @@ export default class TreeScene extends Phaser.Scene {
 
     // líneas entre nodos (doradas si el tramo ya está desbloqueado)
     for (const [id, n] of Object.entries(NODES)) {
-      if (!n.parent || !(this.isVisible(id) || this.isGhost(id)) || !this.isVisible(n.parent)) continue;
-      const p = NODES[n.parent];
-      const done = has(sv, id) && has(sv, n.parent);
+      const par = n.parent && this.linkParent(id);
+      if (!par || !(this.isVisible(id) || this.isGhost(id)) || !this.isVisible(par)) continue;
+      const p = NODES[par];
+      const done = has(sv, id) && has(sv, par);
       g.lineStyle(done ? 5 : 3, done ? 0xffd23f : 0x4a4770, done ? 0.95 : 0.7);
       g.lineBetween(p.x, p.y, n.x, n.y);
     }
@@ -95,9 +109,9 @@ export default class TreeScene extends Phaser.Scene {
       }
       if (!this.isVisible(id)) continue; // niebla: más allá de los fantasmas no se ve nada
       const owned = has(sv, id);
-      const reqOk = n.req.every((r) => has(sv, r));
+      const okReq = reqOk(sv, n);
       const excluded = !owned && n.excl && has(sv, n.excl);
-      const buyable = !owned && reqOk && !excluded;
+      const buyable = !owned && okReq && !excluded;
       const radius = n.kind === 'root' ? 38 : n.kind === 'big' ? 32 : n.kind === 'char' ? 34 : 26;
 
       const fill = owned ? 0xffd23f : buyable ? 0x2a2f66 : 0x1a1830;
@@ -264,6 +278,10 @@ export default class TreeScene extends Phaser.Scene {
     const owned = has(this.sv, id);
     const why = owned ? null : whyNot(this.sv, id);
     this.info.setText(`${nd.name}: ${nd.desc}${owned ? '\n✅ Ya comprado' : why ? '\n⚠ ' + why : ''}`);
+    (this.infoObjs || []).forEach((o) => o.destroy());
+    hideTip();
+    const gl = glossaryFor(nd.name + ' ' + nd.desc);
+    this.infoObjs = gl.length ? infoIcon(this, 940, PANEL_TOP + 28, gl, 12) : []; // "i": aclaración de términos del texto
     this.buyBtn.setVisible(!owned);
     if (!owned) {
       const cost = nd.cur === 'brains' ? `${nd.cost} 🧠` : nd.cost ? `${nd.cost} 🪙` : 'Gratis';
@@ -303,7 +321,26 @@ export default class TreeScene extends Phaser.Scene {
     buy(this.sv, id);
     save();
     // se reinicia la escena conservando el nodo elegido para refrescar monedas y estados
-    this.scene.restart({ selected: id });
+    // (si es una defensa nueva, se enseña una descripción de lo que hace)
+    this.scene.restart({ selected: id, unlocked: NODES[id].kind === 'char' ? id : null });
+  }
+
+  // Ventana de "nuevo aliado" con una descripción corta (sin números) de la defensa recién desbloqueada
+  showUnlock(nodeId) {
+    const tid = NODES[nodeId] && NODES[nodeId].tower;
+    if (!tid || !TOWERS[tid]) return;
+    const def = TOWERS[tid];
+    const art = TOWER_ART[tid];
+    const objs = [];
+    const add = (o) => (objs.push(o), o);
+    add(this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0).setDepth(60).setInteractive());
+    add(woodPanel(this, W / 2 - 320, 130, 640, 360, 61, 16));
+    add(title(this, W / 2, 172, '¡Nuevo aliado desbloqueado!', 30).setDepth(62));
+    const img = add(this.add.image(W / 2 - 215, 300, art.avatar).setDepth(62).setTint(art.tint ?? 0xffffff));
+    img.setScale(130 / img.width);
+    add(this.add.text(W / 2 - 120, 226, def.name, { fontFamily: FONT, fontSize: '30px', color: '#ffe9a0', fontStyle: 'bold', stroke: '#2e1c0f', strokeThickness: 5 }).setDepth(62));
+    add(this.add.text(W / 2 - 120, 270, TOWER_BLURB[tid] || def.desc, { fontFamily: EMOJI_FONT, fontSize: '20px', color: '#fff4d6', stroke: '#2e1c0f', strokeThickness: 3, wordWrap: { width: 400 }, lineSpacing: 4 }).setDepth(62));
+    add(makeButton(this, W / 2 - 100, 420, 200, 54, 'Entendido', () => objs.forEach((o) => o.destroy && o.destroy()), { fontSize: 22, fill: 0x2d6a4f, depth: 63 }));
   }
 }
 

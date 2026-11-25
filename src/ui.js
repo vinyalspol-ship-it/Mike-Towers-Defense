@@ -1,4 +1,4 @@
-﻿import { FONT, COL } from './config.js';
+﻿import { FONT, COL, W, H } from './config.js';
 
 // Botón de madera/pergamino. Devuelve un objeto con métodos de ayuda.
 // opts: fill (color de fondo), fontSize, depth, icon (clave de imagen arriba), iconSize, textColor
@@ -115,4 +115,49 @@ export function iconButton(scene, x, y, size, frame, onClick, depth = 42) {
   spr.on('pointerup', () => spr.setFrame(btn.base));
   spr.on('pointerout', () => spr.setFrame(btn.base));
   return btn;
+}
+
+// ---- Iconos de información ("i"): al pasar el ratón (o tocar, en el móvil) muestran una aclaración ----
+let tipObjs = [];
+export function hideTip() {
+  tipObjs.forEach((o) => o.destroy());
+  tipObjs = [];
+}
+function showTip(scene, x, y, entries) {
+  hideTip();
+  const text = entries.map((e) => `${e.title}: ${e.text}`).join('\n\n');
+  const t = scene.add.text(0, 0, text, { fontFamily: FONT, fontSize: '14px', color: '#fff4d6', wordWrap: { width: 300 }, lineSpacing: 3 }).setDepth(131);
+  const w = t.width + 20;
+  const h = t.height + 16;
+  const bx = Math.min(Math.max(8, x - w - 10), W - w - 8);
+  const by = Math.min(Math.max(8, y - h / 2), H - h - 8);
+  const bg = scene.add.rectangle(bx, by, w, h, 0x1b1209, 0.96).setOrigin(0, 0).setStrokeStyle(2, 0xffd23f).setDepth(130);
+  t.setPosition(bx + 10, by + 8);
+  tipObjs = [bg, t];
+}
+// entries: [{ title, text }] (ver data/glossary.js). Devuelve los objetos creados (para destruirlos con el panel).
+export function infoIcon(scene, x, y, entries, depth = 44) {
+  const c = scene.add.circle(x, y, 9, 0x2f6f9a).setStrokeStyle(2, 0xffffff, 1).setDepth(depth);
+  const t = scene.add.text(x, y, 'i', { fontFamily: FONT, fontSize: '14px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(depth + 0.1);
+  const z = scene.add.zone(x, y, 28, 28).setDepth(depth + 0.2).setInteractive({ useHandCursor: true });
+  let open = false;
+  z.on('pointerover', () => {
+    open = true;
+    showTip(scene, x, y, entries);
+  });
+  z.on('pointerout', () => {
+    open = false;
+    hideTip();
+  });
+  z.on('pointerdown', () => {
+    // en el móvil no hay "pasar por encima": al tocar se abre o se cierra
+    if (open && tipObjs.length) {
+      open = false;
+      hideTip();
+    } else {
+      open = true;
+      showTip(scene, x, y, entries);
+    }
+  });
+  return [c, t, z];
 }

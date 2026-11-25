@@ -3,6 +3,8 @@ import { W, H, FONT, EMOJI_FONT, COL } from '../config.js';
 import { TOWERS, TOWER_ORDER } from '../data/towers.js';
 import { towerUnlocked, maxSlots } from '../data/tree.js';
 import { TOWER_ART } from '../towerArt.js';
+import { infoIcon, hideTip } from '../ui.js';
+import { glossaryFor } from '../data/glossary.js';
 import { load, save } from '../storage.js';
 import { makeButton, title, woodPanel } from '../ui.js';
 
@@ -75,6 +77,7 @@ export default class TeamScene extends Phaser.Scene {
   }
 
   drawCards() {
+    hideTip();
     this.cards.forEach((o) => o.destroy());
     this.cards = [];
     this.refreshInfo();
@@ -95,6 +98,8 @@ export default class TeamScene extends Phaser.Scene {
       const cost = this.add.text(x + 86, y + 58, `🛠 ${def.cost}`, { ...st, fontFamily: EMOJI_FONT, fontSize: '16px', color: '#ffd23f' }).setDepth(11).setAlpha(open ? 1 : 0.6);
       const desc = this.add.text(x + 12, y + 94, open ? def.desc : '🔒 Desbloquéala en el árbol de mejoras', { ...st, fontFamily: EMOJI_FONT, fontSize: '13px', wordWrap: { width: 176 } }).setDepth(11).setAlpha(open ? 1 : 0.7);
       const objs = [bg, icon, name, cost, desc];
+      const gl = open ? glossaryFor(def.desc) : [];
+      if (gl.length) objs.push(...infoIcon(this, x + 180, y + 66, gl, 13)); // "i": aclara términos de la descripción
       if (pos >= 0) objs.push(this.add.text(x + 188, y + 136, `✔${pos + 1}`, { ...st, fontSize: '20px', color: '#ffd23f' }).setOrigin(1, 0).setDepth(12));
       this.cards.push(...objs);
     });

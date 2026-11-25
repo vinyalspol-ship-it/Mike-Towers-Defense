@@ -5,7 +5,8 @@ import { ENEMIES, enemyInfo } from '../data/enemies.js';
 import { LEVELS, waveGroups, rampOf } from '../data/levels.js';
 import { load, save } from '../storage.js';
 import { has, gemRates, COINS_PER_KILL, pathTierUnlocked, towerUnlocked, START_LIVES, wallLives, maxSlots } from '../data/tree.js';
-import { makeButton, woodPanel, iconButton } from '../ui.js';
+import { makeButton, woodPanel, iconButton, infoIcon, hideTip } from '../ui.js';
+import { glossaryFor } from '../data/glossary.js';
 import { bindMusicKey } from '../music.js';
 import { playFx } from '../art.js';
 import { NewTowers, NEW_TYPES } from '../newTowers.js';
@@ -17,6 +18,7 @@ const dist2 = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 const LANE = 18; // desplazamiento lateral máximo (px) dentro del camino de 64 px
 const PATH_CLEAR = 46; // distancia mínima de una defensa al centro del camino
 const TOWER_GAP = 54; // distancia mínima entre dos defensas
+const TUT_STEPS = ['place_barb', 'place_elf', 'call_wave', 'speed', 'priority', 'upgrade', 'skill_buy', 'skill_use', 'sell', 'done'];
 const PRIORITIES = [['first', 'Primero'], ['last', 'Último'], ['hp', 'Más vida'], ['armor', 'Armados']];
 
 
@@ -48,6 +50,7 @@ export default class GameScene extends Phaser.Scene {
     this.drawMap();
     this.fxBelow = this.add.graphics().setDepth(5);
     this.fxAbove = this.add.graphics().setDepth(30);
+    this.startTxt = this.add.text(0, 0, '¡Los zombis llegan por aquí!', { fontFamily: FONT, fontSize: '18px', color: '#ffffff', stroke: '#2e1c0f', strokeThickness: 4 }).setOrigin(0.5).setDepth(31).setVisible(false);
 
     this._slotsShown = undefined;
     this.seen = null; // enemigos descubiertos (se cargan al aparecer el primero)
@@ -66,7 +69,7 @@ export default class GameScene extends Phaser.Scene {
     this.waveRunning = false;
     this.queue = [];
     this.queueT = 0;
-    this.countdown = this.level.tutorial ? 9999 : 10;
+    this.countdown = 9999; // la oleada la llama el jugador con el botón (o Autoplay)
     this.enemies = [];
     this.towers = [];
     this.projectiles = [];
@@ -83,7 +86,8 @@ export default class GameScene extends Phaser.Scene {
     this.panelDirty = true;
     this.skillsDirty = true;
     this._lastKey = '';
-    this.tut = this.level.tutorial ? { step: 0 } : null;
+    this.tut = this.level.tutorial ? { step: 'place_barb' } : null;
+    this.autoplay = !this.tut && localStorage.getItem('zmcd_autoplay') === '1'; // Autoplay: la siguiente oleada sale sola al terminar cada una
 
     this.waveStartAt = -999; // instante en que empezó la última oleada
     this.availAt = 0; // desde cuándo se puede llamar a la siguiente oleada (para el premio por adelantarla)
@@ -336,7 +340,7 @@ export default class GameScene extends Phaser.Scene {
     this.txtSupplies = this.add.text(194, 8, '', style).setDepth(41);
     this.add.image(350, 22, 'icon_05').setScale(0.7).setDepth(41);
     this.txtWave = this.add.text(374, 8, '', style).setDepth(41);
-    this.txtTime = this.add.text(642, 10, '', { ...style, fontSize: '22px' }).setDepth(41); // tiempo de partida (sin contar pausas)
+    this.txtTime = this.add.text(556, 10, '', { ...style, fontSize: '22px' }).setDepth(41); // tiempo de partida (sin contar pausas)
     this.txtBuffs = this.add.text(W / 2, MAP_Y + 6, '', { ...style, fontSize: '20px', color: '#ffd23f' }).setOrigin(0.5, 0).setDepth(41);
 
     this.btnWave = makeButton(this, 860, 6, 150, 36, '▶ Oleada', () => this.callWave(), {
@@ -359,7 +363,7 @@ export default class GameScene extends Phaser.Scene {
     this.btnPause.setText = (s) => this.btnPause.setBase(s === '▶' ? 0 : 2);
     // botón AUTO: solo existe si se compró "Lanzamiento automático" en el árbol
     this.autoSkills = false;
-    if (has(this.sv, 'auto_skills')) {
+    if (has(this.sv, 'auto_skills') && !this.tut) {
       this.autoSkills = localStorage.getItem('zmcd_auto') !== '0';
       const paint = () => this.btnAuto.setText(this.autoSkills ? 'AUTO ✔' : 'AUTO ✖');
       this.btnAuto = makeButton(
@@ -373,9 +377,29 @@ export default class GameScene extends Phaser.Scene {
       );
       paint();
     }
+    // botón Autoplay: encadena las oleadas solo; apagado, el juego espera a que pulses ▶ Oleada al terminar cada una
+    if (!this.tut) {
+      const paintAP = () => {
+        this.btnAutoplay.setText(this.autoplay ? 'Autoplay ✔' : 'Autoplay ✖');
+        this.btnAutoplay.setFill(this.autoplay ? 0x2d6a4f : 0x5b4636);
+      };
+      this.btnAutoplay = makeButton(
+        this, 662, 6, 98, 36, '',
+        () => {
+          this.autoplay = !this.autoplay;
+          localStorage.setItem('zmcd_autoplay', this.autoplay ? '1' : '0');
+          paintAP();
+          const idle = !this.waveRunning && !this.queue.length && this.waveNo < this.level.waveCount && !this.ended;
+          if (this.autoplay && idle) this.countdown = 0.5; // si estaba esperando, sale ya
+          if (!this.autoplay && this.countdown < 9000) this.countdown = 9999; // cancelar la cuenta atrás
+        },
+        { fontSize: 14, depth: 42 }
+      );
+      paintAP();
+    }
     // botón de desarrollador: salta directamente al nivel siguiente (lo da por superado, sin premios ni estrellas)
     if (DEV_TOOLS) makeButton(
-      this, 566, 6, 66, 36, '⏭ DEV',
+      this, 6, 54, 66, 30, '⏭ DEV',
       () => {
         this.sv.cleared[this.levelId] = true;
         save();
@@ -456,20 +480,23 @@ export default class GameScene extends Phaser.Scene {
     this.banner = this.add
       .text(W / 2, MAP_Y + 14, '', {
         fontFamily: FONT,
-        fontSize: '24px',
+        fontSize: '20px',
         color: '#ffffff',
         backgroundColor: '#000000cc',
         padding: { x: 14, y: 8 },
         align: 'center',
+        wordWrap: { width: 1100 },
       })
       .setOrigin(0.5, 0)
       .setDepth(45)
       .setVisible(false);
+    this.tutHi = this.add.graphics().setDepth(60);
   }
 
   // velocidad x1 -> x2 -> x3 -> x1 (botón o tecla F)
   cycleSpeed() {
     this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 3 : 1;
+    if (this.tut) this._tutSpeed = true;
     this.btnSpeed.setText('⏩ x' + this.speed);
   }
 
@@ -591,6 +618,13 @@ export default class GameScene extends Phaser.Scene {
   beginPlacing(i, pointer, drag) {
     const type = this.slotType(i);
     if (!type || this.ended || this.paused) return;
+    if (this.tut) {
+      const need = this.tut.step === 'place_barb' ? 'barbaro' : this.tut.step === 'place_elf' ? 'elfo' : null;
+      if (need && type !== need) {
+        this.uiFloat(W / 2, PANEL_Y - 30, `Ahora toca colocar el ${TOWERS[need].name}`, '#ff9e80');
+        return;
+      }
+    }
     if (this.placing && this.placing.slot === i && !drag) {
       this.cancelPlacing(); // pulsar otra vez el mismo número lo cancela
       return;
@@ -668,10 +702,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   canCallWave() {
-    return !this.ended && !this.paused && !this.queue.length && this.waveNo < this.level.waveCount && !(this.tut && this.tut.step < 2) && this.waveCooldown() <= 0;
+    return !this.ended && !this.paused && !this.queue.length && this.waveNo < this.level.waveCount && !this.tutorialBlock() && this.waveCooldown() <= 0;
   }
 
   callWave() {
+    const blk = this.tutorialBlock();
+    if (blk && !this.ended && !this.paused) {
+      this.uiFloat(W / 2, MAP_Y + 100, blk, '#ff9e80');
+      return;
+    }
     if (!this.canCallWave()) return;
     this.startWave(true);
   }
@@ -752,7 +791,7 @@ export default class GameScene extends Phaser.Scene {
     if (cur >= 4) return { state: 'maxed' };
     const tier = cur + 1;
     const upg = TOWERS[t.type].paths[P].tiers[cur];
-    if (!pathTierUnlocked(this.sv, t.type, P, tier)) return { state: 'tree', tier, upg, reason: `🔒 Nivel ${tier}\nDesbloquéalo en el árbol` };
+    if (!(this.tut && t.type === 'barbaro') && !pathTierUnlocked(this.sv, t.type, P, tier)) return { state: 'tree', tier, upg, reason: `🔒 Nivel ${tier}\nDesbloquéalo en el árbol` };
     if (tier === 3 && PATH_KEYS.filter((p) => t.ups[p] >= 3).length >= 2)
       return { state: 'blocked', tier, upg, reason: '🔒 Bloqueada\n(ya hay 2 caminos en nivel 3)' };
     if (tier === 4 && PATH_KEYS.some((p) => t.ups[p] >= 4))
@@ -761,7 +800,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // precio real de una mejora: el Tributo del Rey Midas (camino B) abarata un 10% las mejoras de las defensas cercanas (no acumulable)
-  upgCost(t, upg) {
+  upgCost(t, upg, tier) {
+    // tutorial: las mejoras del Bárbaro cuestan la mitad y la habilidad (nivel 4) es gratis
+    if (this.tut && t.type === 'barbaro') return tier === 4 ? 0 : Math.round(upg.cost * 0.5);
     const disc = this.towers.some((m) => m !== t && m.type === 'midas' && m.ups.B >= 1 && dist2(m.x, m.y, t.x, t.y) <= 150);
     return Math.round(upg.cost * (disc ? 0.9 : 1));
   }
@@ -769,7 +810,7 @@ export default class GameScene extends Phaser.Scene {
   buyUpgrade(t, P) {
     const st = this.upgradeState(t, P);
     if (st.state !== 'ok') return;
-    const cost = this.upgCost(t, st.upg);
+    const cost = this.upgCost(t, st.upg, st.tier);
     if (this.supplies < cost) return;
     this.supplies -= cost;
     t.invested += cost;
@@ -781,6 +822,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   sellTower(t) {
+    if (this.tut) this._tutSold = true;
     if (t.vault > 0) this.ntCollect(t); // el inventario del Rey Midas se recauda al venderlo
     const refund = Math.floor(t.invested * (has(this.sv, 'rich_3') ? 0.85 : 0.6));
     this.supplies += refund;
@@ -976,6 +1018,7 @@ export default class GameScene extends Phaser.Scene {
       default:
         if (!this.ntSkill(t, s, live)) return;
     }
+    if (this.tut && t.type === 'barbaro') this._tutSkill = true;
     t.skillCd = def.cooldown;
     this.floatText(t.x, t.y - 44, def.icon + ' ' + def.name, '#ffffff');
   }
@@ -983,7 +1026,7 @@ export default class GameScene extends Phaser.Scene {
   // --------------------------------------------------------------- OLEADAS
   startWave(manual = false) {
     if (this.ended || this.waveNo >= this.level.waveCount) return;
-    if (this.tut && this.tut.step < 2) return;
+    if (this.tutorialBlock()) return;
     if (manual && this.queue.length) return; // no encolar mientras aún están saliendo zombis
     if (manual && this.waveCooldown() > 0) return; // al menos 15 s entre una oleada y la siguiente
     // los suministros de la oleada se dan al instante, al empezarla
@@ -1226,7 +1269,7 @@ export default class GameScene extends Phaser.Scene {
       this.ntOnWaveEnd();
       this.uiFloat(W / 2, MAP_Y + 120, `Oleada ${this.waveNo} superada`, '#9be4ff');
       if (this.waveNo >= this.level.waveCount) this.finish(true);
-      else this.countdown = 3; // pausa corta entre oleadas
+      else this.countdown = this.autoplay ? 3 : 9999; // con Autoplay la siguiente sale sola; si no, se espera al botón de oleada
     }
   }
 
@@ -1874,13 +1917,16 @@ export default class GameScene extends Phaser.Scene {
   damage(e, amount, opts = {}) {
     if (e.dead) return;
     let a = amount;
-    if (e.def.resist && !opts.ignoreResist) a *= 1 - e.def.resist * (opts.resMul ?? 1);
+    // fuentes de daño mágico: Mago, Nigromante y Druida
+    const magic = !!opts.src && (opts.src.type === 'mago' || opts.src.type === 'nigromante' || opts.src.type === 'druida');
+    // la armadura (resistencia física) la ignoran la magia, el veneno y el fuego (todo daño continuo) y las habilidades que lo indican
+    if (e.def.resist && !opts.ignoreResist && !opts.dot && !magic) a *= 1 - e.def.resist * (opts.resMul ?? 1);
     if (e.corrodeUntil > this.now) a *= 1.2;
     if (e.markUntil > this.now) a *= e.markMult || 1; // marcado (Empalamiento, Juicio divino)
     if (e.shredUntil > this.now) a *= 1 + (e.shredAmt || 0); // resistencia reducida (maldición, Lanza del rey, oro frágil)
     if (opts.turret) e.turretHit = opts.src;
-    // resistencia mágica: solo frente al Mago y al Alquimista
-    if (e.def.mres && opts.src && (opts.src.type === 'mago' || opts.src.type === 'alquimista')) a *= 1 - e.def.mres;
+    // resistencia mágica: reduce el daño de las fuentes mágicas (Mago, Nigromante, Druida)
+    if (e.def.mres && magic) a *= 1 - e.def.mres;
     // contador de daño por defensa (no cuenta el daño sobrante de una baja)
     if (opts.src) opts.src.dmgDealt += Math.min(a, Math.max(0, e.hp));
     e.hp -= a;
@@ -2010,27 +2056,111 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- TUTORIAL
+  // Pasos: colocar Bárbaro -> Elfo -> llamar oleada -> acelerar -> prioridad -> mejorar -> comprar la habilidad (obligatoria
+  // antes de la oleada 4) -> usarla (obligatorio antes de la 5) -> vender. Los pasos ya hechos se saltan solos.
+  tutIdx() {
+    return this.tut ? TUT_STEPS.indexOf(this.tut.step) : 99;
+  }
+
+  tutDone(step) {
+    switch (step) {
+      case 'place_barb': return this.towers.some((t) => t.type === 'barbaro');
+      case 'place_elf': return this.towers.some((t) => t.type === 'elfo');
+      case 'call_wave': return this.waveNo >= 1;
+      case 'speed': return !!this._tutSpeed;
+      case 'priority': return !!this._tutPrio;
+      case 'upgrade': return this.towers.some((t) => t.type === 'barbaro' && this.total(t) >= 1);
+      case 'skill_buy': return this.towers.some((t) => t.type === 'barbaro' && t.ups.B >= 4);
+      case 'skill_use': return !!this._tutSkill;
+      case 'sell': return !!this._tutSold;
+      default: return false;
+    }
+  }
+
   updateTutorial() {
     const t = this.tut;
     if (!t) return;
-    if (t.step === 0 && this.towers.length >= 1) t.step = 1;
-    if (t.step === 1 && this.towers.length >= 2) {
-      t.step = 2;
-      this.countdown = 8;
+    let guard = 0;
+    while (t.step !== 'done' && this.tutDone(t.step) && guard++ < 12) {
+      t.step = TUT_STEPS[TUT_STEPS.indexOf(t.step) + 1];
+      if (t.step === 'done') t.doneAt = this.now;
     }
+  }
+
+  // Motivo por el que el tutorial no deja llamar a la siguiente oleada (o null)
+  tutorialBlock() {
+    if (!this.tut) return null;
+    const i = this.tutIdx();
+    if (i < TUT_STEPS.indexOf('call_wave')) return 'Primero coloca el Bárbaro y el Elfo';
+    if (this.waveNo === 3 && i < TUT_STEPS.indexOf('skill_use')) return 'Antes de la oleada 4 completa los pasos: compra la habilidad del Bárbaro';
+    if (this.waveNo === 4 && i < TUT_STEPS.indexOf('sell')) return 'Antes de seguir, usa la habilidad del Bárbaro';
+    return null;
   }
 
   tutorialText() {
     const t = this.tut;
     if (!t) return '';
+    const sel = this.selection && this.selection.kind === 'tower';
     switch (t.step) {
-      case 0:
-        return '1/2 · Arrastra el Bárbaro 🪓 de la izquierda al mapa (o pulsa 1 y haz clic)';
-      case 1:
-        return '2/2 · Coloca otra defensa: cuantas más, mejor aguantarás';
+      case 'place_barb':
+        return '1/2 · Coloca un Bárbaro 🪓: arrástralo desde la izquierda al mapa (o pulsa 1 y haz clic)';
+      case 'place_elf':
+        return '2/2 · Ahora coloca el Elfo 🏹 (casilla 2): ataca de lejos. Combinar defensas es la clave';
+      case 'call_wave':
+        return 'Cuando estés listo, pulsa ▶ Oleada (o la barra espaciadora). Tú decides cuándo llega cada oleada';
+      case 'speed':
+        return '⏩ Puedes acelerar la partida con este botón (o con la tecla F). Pulsa para x2 y vuelve a x1 cuando quieras';
+      case 'priority':
+        return sel ? '🎯 En «Prioridad» eliges a quién ataca primero: Primero, Último, Más vida o Armados. Pulsa una' : 'Toca una de tus defensas: verás su ficha, sus mejoras y su prioridad de ataque';
+      case 'upgrade':
+        return 'Mejora al Bárbaro: selecciónalo y compra una mejora. En el tutorial tiene todas, a mitad de precio';
+      case 'skill_buy':
+        return 'Antes de la oleada 4 necesitas su habilidad: sube el camino B (Vikingo) hasta el nivel 4. ¡El Cuerno Vikingo es gratis!';
+      case 'skill_use':
+        return '🎺 ¡Usa la habilidad! Pulsa el botón morado de la derecha. Cada habilidad tiene un tiempo de recarga' + (this.waveRunning ? '' : ' (llama a la siguiente oleada para tener zombis)');
+      case 'sell':
+        return 'Vender: selecciona una defensa y pulsa «Vender» para recuperar parte de su coste. Prueba con una que te sobre (pon otra y véndela)';
       default:
-        return this.waveNo === 0 ? '¡Bien! Cada oleada será más dura: sigue comprando defensas y mejoras.' : '';
+        return this.now - (t.doneAt || 0) < 9 ? '¡Tutorial completado! En los siguientes niveles tienes el botón Autoplay para encadenar las oleadas' : '';
     }
+  }
+
+  // Zona de la pantalla que el tutorial señala con un marco amarillo parpadeante
+  tutTarget() {
+    const t = this.tut;
+    if (!t) return null;
+    const y0 = PANEL_Y + 14;
+    const sel = this.selection && this.selection.kind === 'tower' ? this.selection.tower : null;
+    const towerBox = (type) => {
+      const tw = this.towers.find((q) => (type ? q.type === type : true));
+      return tw ? { x: tw.x - 32, y: tw.y - 36, w: 64, h: 72 } : null;
+    };
+    switch (t.step) {
+      case 'place_barb':
+      case 'place_elf': {
+        const i = this.team.indexOf(t.step === 'place_barb' ? 'barbaro' : 'elfo');
+        return i >= 0 ? { x: 10 + i * 80, y: y0, w: 76, h: 138 } : null;
+      }
+      case 'call_wave': return { x: 860, y: 6, w: 150, h: 36 };
+      case 'speed': return { x: 1020, y: 6, w: 90, h: 36 };
+      case 'priority': return sel ? { x: 204, y: y0, w: 122, h: 124 } : towerBox('barbaro');
+      case 'upgrade': return sel && sel.type === 'barbaro' ? { x: 330, y: y0, w: 616, h: 138 } : towerBox('barbaro');
+      case 'skill_buy': return sel && sel.type === 'barbaro' ? { x: 534, y: y0, w: 204, h: 138 } : towerBox('barbaro');
+      case 'skill_use': return { x: 1132, y: y0, w: 70, h: 70 };
+      case 'sell': return sel ? { x: 942, y: y0, w: 88, h: 96 } : towerBox();
+      default: return null;
+    }
+  }
+
+  drawTutorialHighlight() {
+    const g = this.tutHi;
+    if (!g) return;
+    g.clear();
+    const r = this.tut && !this.ended ? this.tutTarget() : null;
+    if (!r) return;
+    const k = 0.5 + 0.5 * Math.sin(this.time.now / 180);
+    g.lineStyle(5, 0xffe34d, 0.55 + 0.45 * k);
+    g.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
   }
 
   // -------------------------------------------------------------------- UI
@@ -2047,6 +2177,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   clearPanel() {
+    hideTip();
     this.panelObjs.forEach((o) => o.destroy());
     this.panelObjs = [];
     this.dmgTxt = null;
@@ -2107,6 +2238,7 @@ export default class GameScene extends Phaser.Scene {
       add(
         makeButton(this, 206, y0 + 20 + i * 30, 118, 27, (on ? '✔ ' : '') + label, () => {
           t.prio = key;
+          if (this.tut) this._tutPrio = true;
           this.panelDirty = true;
         }, { fontSize: 13, fill: on ? 0x2f6f4a : 0x4a3b2e, depth: 42 })
       );
@@ -2118,7 +2250,7 @@ export default class GameScene extends Phaser.Scene {
       const CW = 200;
       const st = this.upgradeState(t, P);
       const owned = t.ups[P];
-      const price = st.upg ? this.upgCost(t, st.upg) : 0;
+      const price = st.upg ? this.upgCost(t, st.upg, st.tier) : 0;
       const enabled = st.state === 'ok' && this.supplies >= price;
       const b = makeButton(this, x, y0, CW, BH, '', () => this.buyUpgrade(t, P), {
         fill: st.state === 'ok' ? 0x2f6f5a : 0x4a3b2e,
@@ -2148,9 +2280,11 @@ export default class GameScene extends Phaser.Scene {
       const dy = y0 + 45 + nm.height + 2;
       if (st.state === 'ok') {
         add(this.add.text(x + 10, dy, st.upg.desc, { ...tx, fontSize: '12px', color: '#e8dcc0' }).setDepth(43).setAlpha(a));
+        const gl = glossaryFor(`${st.upg.name} ${st.upg.desc}`);
+        if (gl.length) infoIcon(this, x + CW - 14, y0 + 36, gl, 44).forEach((o) => add(o)); // "i": aclara términos (dorados, armadura...)
         add(
           this.add
-            .text(x + 10, y0 + BH - 26, `🛠 ${price}${price !== st.upg.cost ? ' (-10%)' : ''}`, { ...tx, fontSize: '18px', color: this.supplies >= price ? '#ffd23f' : '#ff8a80' })
+            .text(x + 10, y0 + BH - 26, `🛠 ${price}${price === 0 ? ' ¡GRATIS!' : price < st.upg.cost ? ' (rebaja)' : ''}`, { ...tx, fontSize: '18px', color: this.supplies >= price ? '#ffd23f' : '#ff8a80' })
             .setDepth(43)
         );
       } else {
@@ -2212,6 +2346,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   refreshUi() {
+    this.updateTutorial();
+    this.drawTutorialHighlight();
     if (this.panelDirty && !this.ended) {
       this.panelDirty = false;
       this.rebuildPanel();
@@ -2256,7 +2392,7 @@ export default class GameScene extends Phaser.Scene {
     this.txtBuffs.setText(buffs.join('  '));
 
     const cool = this.waveCooldown();
-    const canCall = !this.queue.length && this.waveNo < this.level.waveCount && !(this.tut && this.tut.step < 2) && cool <= 0;
+    const canCall = !this.queue.length && this.waveNo < this.level.waveCount && !this.tutorialBlock() && cool <= 0;
     this.btnWave.setEnabled(canCall);
     const bonus = this.waveNo < this.level.waveCount ? this.waveBonus() : 0;
     this.btnWave.setText(
@@ -2313,6 +2449,34 @@ export default class GameScene extends Phaser.Scene {
         b.lineStyle(3, special ? 0xffd700 : 0xc0c0c0, 0.9);
         b.strokeCircle(t.x, t.y + 10, 26);
       }
+    }
+
+    // flecha que indica por dónde entrarán los zombis (solo antes de la primera oleada)
+    const showArrow = this.waveNo === 0 && !this.waveRunning && !this.ended;
+    this.startTxt.setVisible(showArrow);
+    if (showArrow) {
+      const p0 = this.posAt(165, 0, 0); // un poco después de la entrada, sobre el camino
+      const p1 = this.posAt(245, 0, 0);
+      const ang = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+      const ca = Math.cos(ang);
+      const sa = Math.sin(ang);
+      const bob = Math.sin(this.now * 5) * 9;
+      const cx = p0.x + ca * bob;
+      const cy = p0.y + sa * bob;
+      a.fillStyle(0xff9800, 1);
+      a.lineStyle(4, 0x4e2a00, 1);
+      a.beginPath();
+      a.moveTo(cx + ca * 40, cy + sa * 40); // punta
+      a.lineTo(cx + ca * 8 - sa * 24, cy + sa * 8 + ca * 24);
+      a.lineTo(cx + ca * 8 - sa * 10, cy + sa * 8 + ca * 10);
+      a.lineTo(cx - ca * 34 - sa * 10, cy - sa * 34 + ca * 10);
+      a.lineTo(cx - ca * 34 + sa * 10, cy - sa * 34 - ca * 10);
+      a.lineTo(cx + ca * 8 + sa * 10, cy + sa * 8 - ca * 10);
+      a.lineTo(cx + ca * 8 + sa * 24, cy + sa * 8 - ca * 24);
+      a.closePath();
+      a.fillPath();
+      a.strokePath();
+      this.startTxt.setPosition(Math.max(110, Math.min(this.WW - 110, cx)), cy - 52);
     }
 
     // zonas

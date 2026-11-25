@@ -4,7 +4,8 @@ import { TOWERS, TOWER_ORDER } from '../data/towers.js';
 import { towerUnlocked } from '../data/tree.js';
 import { TOWER_ART } from '../towerArt.js';
 import { load } from '../storage.js';
-import { makeButton, title, woodPanel } from '../ui.js';
+import { makeButton, title, woodPanel, infoIcon, hideTip } from '../ui.js';
+import { GLOSSARY, glossaryFor } from '../data/glossary.js';
 
 // Datos base y consejos de cada defensa (las cifras salen de GameScene.stats() / newTowers.js: actualizar si cambian)
 const INFO = {
@@ -53,17 +54,41 @@ export default class CodexScene extends Phaser.Scene {
   }
 
   go(d) {
-    this.idx = (this.idx + d + TOWER_ORDER.length) % TOWER_ORDER.length;
+    const n = TOWER_ORDER.length + 1; // las defensas + la página del glosario
+    this.idx = (this.idx + d + n) % n;
     this.show();
   }
 
+  // Última página del libro: glosario de combate (resistencias, dorados, control...)
+  showGlossary(add) {
+    const ink = '#3b2412';
+    const lx = 60;
+    const lw = W / 2 - 66;
+    const rx = W / 2 + 26;
+    const rw = W / 2 - 106;
+    add(this.add.text(lx + lw / 2, 112, 'Glosario de combate', { fontFamily: FONT, fontSize: '32px', color: '#7b241c', fontStyle: 'bold' }).setOrigin(0.5).setDepth(5));
+    add(this.add.text(lx + 30, 170, 'Las dos resistencias', { fontFamily: FONT, fontSize: '22px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
+    const body = (txt, y, w = lw - 60) => add(this.add.text(lx + 30, y, txt, { fontFamily: EMOJI_FONT, fontSize: '16px', color: ink, lineSpacing: 4, wordWrap: { width: w } }).setDepth(5));
+    const a = body('🛡 Armadura (resistencia física): el enemigo absorbe un porcentaje del daño de los golpes físicos.\n\nLa ignoran: los ataques mágicos (Mago, Nigromante, Druida), el veneno, el fuego (todo daño continuo) y las habilidades que lo indican, como la Lluvia de flechas y la Magia oscura del Elfo.', 204);
+    body('✨ Resistencia mágica: el enemigo reduce un porcentaje del daño de las fuentes mágicas: Mago, Nigromante y Druida. No afecta a los golpes físicos.\n\nUn enemigo puede tener solo una de las dos, o un poco de cada. Los blindados, por ejemplo, tienen mucha armadura: la magia los funde.', 204 + a.height + 18);
+    add(this.add.text(lx + lw / 2, 590, `${TOWER_ORDER.length + 1} / ${TOWER_ORDER.length + 1}`, { fontFamily: FONT, fontSize: '16px', color: '#6d5a45' }).setOrigin(0.5).setDepth(5));
+    let y = 100;
+    GLOSSARY.filter((g) => g.key !== 'armadura' && g.key !== 'magica').forEach((g) => {
+      add(this.add.text(rx, y, g.title, { fontFamily: FONT, fontSize: '19px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
+      const t = add(this.add.text(rx, y + 25, g.text, { fontFamily: EMOJI_FONT, fontSize: '15px', color: ink, lineSpacing: 2, wordWrap: { width: rw } }).setDepth(5));
+      y += 25 + t.height + 14;
+    });
+  }
+
   show() {
+    hideTip();
     this.page.forEach((o) => o.destroy());
     this.page = [];
     const add = (o) => {
       this.page.push(o);
       return o;
     };
+    if (this.idx >= TOWER_ORDER.length) return this.showGlossary(add);
     const id = TOWER_ORDER[this.idx];
     const def = TOWERS[id];
     const art = TOWER_ART[id];
@@ -107,6 +132,8 @@ export default class CodexScene extends Phaser.Scene {
       let y = 374;
       path.tiers.forEach((u, k) => {
         const t = add(this.add.text(x, y, `${k + 1}. ${u.name}  🛠${u.cost}\n${u.desc}`, { fontFamily: EMOJI_FONT, fontSize: '11px', color: ink, lineSpacing: 1, wordWrap: { width: colW - 4 } }).setDepth(5));
+        const gl = glossaryFor(`${u.name} ${u.desc}`);
+        if (gl.length) infoIcon(this, x + colW - 14, y + 7, gl, 6).forEach((o) => add(o)); // "i": aclara términos de la mejora
         y += t.height + 6;
       });
     });

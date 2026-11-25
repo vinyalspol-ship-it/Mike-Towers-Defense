@@ -1,7 +1,9 @@
 ﻿// Enemigos. Los números son ajustables.
 // Arte: Tiny RPG Character Asset Pack 01 (Orco = zombis "de carne", Soldado = zombis con casco y escudo).
-// resist = armadura (fracción de daño que se absorbe; la Magia oscura del Elfo la ignora).
-// mres = resistencia mágica (solo reduce el daño del Mago y del Alquimista).
+// Solo hay DOS resistencias. Un enemigo puede tener una, la otra o un poco de las dos:
+// resist = armadura (resistencia física): absorbe un % del daño físico. La ignoran la magia (Mago, Nigromante, Druida),
+//          el veneno, el fuego (cualquier daño continuo) y las habilidades que lo dicen (Lluvia de flechas, Magia oscura...).
+// mres = resistencia mágica: reduce un % el daño de las fuentes mágicas (Mago, Nigromante y Druida).
 // noPoison / noFire / noSlow = inmunidades.
 const S = 2.7; // los fotogramas del pack son pequeños: se amplían para igualar el tamaño en pantalla
 const orc = (s, tint) => ({ key: 'orc_walk', scale: s * S, tint, shadow: 0.38 * s });
@@ -50,8 +52,7 @@ export const ENEMIES = {
     size: 46,
     hp: 420,
     speed: 38,
-    resist: 0.3,
-    mres: 0.1,
+    resist: 0.3, // paladín: solo armadura
     reward: 18,
     leak: 2,
   },
@@ -62,8 +63,7 @@ export const ENEMIES = {
     size: 48,
     hp: 650,
     speed: 36,
-    resist: 0.45,
-    mres: 0.1,
+    resist: 0.45, // blindado: solo armadura (la magia lo funde)
     reward: 26,
     leak: 2,
   },
@@ -185,8 +185,8 @@ export function enemyInfo(def) {
   const rows = [
     ['Tipo', def.boss ? 'JEFE' : def.mini ? 'Minijefe' : 'Normal'],
     ['Vida base', String(def.hp)],
-    ['Armadura', pct(def.resist) + ' de daño absorbido'],
-    ['Resist. mágica', pct(def.mres)],
+    ['Armadura (física)', pct(def.resist) + ' de daño físico'],
+    ['Resist. mágica', pct(def.mres) + ' de daño mágico'],
     ['Velocidad', spd],
     ['Daño al castillo', `${def.leak} vida${def.leak > 1 ? 's' : ''}`],
     ['Recompensa', `${Math.max(1, Math.round(def.reward * 0.75))} suministros`],
@@ -198,7 +198,8 @@ export function enemyInfo(def) {
   if (def.sprint) traits.push(`Sprint inicial de ${def.sprintTime} s y luego se cansa`);
   if (def.aura) traits.push('Aura: acelera a los zombis cercanos un 25%');
   if (def.summon) traits.push('Invoca refuerzos');
-  if (def.resist) traits.push('La Magia oscura del Elfo ignora su armadura');
+  if (def.resist) traits.push('Armadura: la ignoran la magia, el veneno, el fuego y algunas habilidades');
+  if (def.mres) traits.push('Resistencia mágica: reduce el daño del Mago, el Nigromante y el Druida');
   if (def.mini) traits.push('No se puede aturdir ni inmovilizar con mejoras normales');
   if (def.boss || def.mini) traits.push('No se le puede empujar');
   return { rows, traits };
