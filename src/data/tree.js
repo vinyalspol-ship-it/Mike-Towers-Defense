@@ -7,6 +7,7 @@
 //   De cada personaje salen sus 3 caminos (A, B, C), y cada camino tiene 4 nodos (nivel 1..4) que se compran EN ORDEN.
 // Cada nodo: { name, desc, cost, cur, req:[ids], parent:id (para la línea), icon, x, y, kind, color }
 import { TOWERS, TOWER_ORDER, PATH_KEYS } from './towers.js';
+import { TREE_BLURB } from './blurbs.js';
 
 export const NODES = {};
 const rad = (d) => (d * Math.PI) / 180;
@@ -140,7 +141,7 @@ for (const id of TOWER_ORDER) {
   }
   add(charId, {
     name: t.name,
-    desc: CHAR_COST[id] ? `Cuesta ${CHAR_COST[id]} cerebro${CHAR_COST[id] > 1 ? 's' : ''}.${GATE[id] ? ` Se desbloquea tras: ${Array.isArray(GATE[id]) ? 'cualquier mejora de nivel 4 del Elfo' : NODES[GATE[id]].name}.` : ''} Desbloquea al ${t.name}: podrás construirlo en las partidas y mejorarlo con sus 3 caminos.` : `${t.name}: disponible desde el principio. Mejóralo con sus 3 caminos.`,
+    desc: TREE_BLURB[id] || t.desc,
     cost: CHAR_COST[id],
     cur: CHAR_COST[id] ? 'brains' : 'coins',
     icon: t.emoji,
@@ -158,7 +159,7 @@ for (const id of TOWER_ORDER) {
       const prev = n === 0 ? charId : `${t.short}_${P}${n}`;
       add(`${t.short}_${P}${n + 1}`, {
         name: upg.name,
-        desc: `${t.name} · camino ${P} (${path.name}) · nivel ${n + 1}: ${upg.name}. ${upg.desc}.${RULE[n + 1] || ''}`,
+        desc: `${t.name} · camino ${P} (${path.name}) · nivel ${n + 1}: ${upg.name}. ${upg.desc}.`,
         cost: n === 0 ? TIER1_COST[id] : Math.round(TIER_COST[n] * COST_MULT[id]),
         icon: String(n + 1),
         kind: n === 3 ? 'big' : 'path',
@@ -263,7 +264,7 @@ export function whyNot(s, id) {
   if (n.reqAny && !n.reqAny.some((r) => has(s, r))) return 'Antes necesitas una mejora de nivel 4 del Elfo (la que sea)';
   if (n.excl && has(s, n.excl)) return 'Ya elegiste la otra rama extra';
   const have = n.cur === 'brains' ? s.brains : s.coins;
-  if (have < n.cost) return n.cur === 'brains' ? 'Te falta un cerebro 🧠 (1 por cada nivel superado por primera vez)' : `Te faltan ${n.cost - have} monedas`;
+  if (have < n.cost) return n.cur === 'brains' ? `Te faltan ${n.cost - have} 🧠` : `Te faltan ${n.cost - have} monedas`;
   return null;
 }
 

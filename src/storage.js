@@ -1,8 +1,8 @@
 // Guardado local (localStorage). Todo el progreso vive aquí.
-const KEY = 'zmcd_save_v3';
-const OLD_KEYS = ['zmcd_save_v2', 'zmcd_save_v1'];
-// Nodos que se conservan al migrar desde versiones anteriores (el resto del árbol cambió)
-const KEEP_NODE = /^(root|eco_|br_|gem_|rich_)/;
+// Versión del guardado. Al subirla, las partidas guardadas de versiones anteriores se BORRAN y sus jugadores reciben un regalo.
+const KEY = 'zmcd_save_v4';
+const OLD_KEYS = ['zmcd_save_v3', 'zmcd_save_v2', 'zmcd_save_v1'];
+export const GIFT_COINS = 50; // regalo por el reinicio del progreso
 // Personajes gratuitos: siempre desbloqueados
 const FREE = ['char_bar', 'char_elf'];
 
@@ -25,25 +25,26 @@ function withFree(s) {
 
 export function load() {
   if (state) return state;
+  let gift = false;
   const d = DEFAULT();
   let parsed = null;
   try {
     parsed = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (!parsed) {
-      for (const k of OLD_KEYS) {
-        const old = JSON.parse(localStorage.getItem(k) || 'null');
-        if (old) {
-          const nodes = {};
-          Object.keys(old.nodes || {}).forEach((id) => KEEP_NODE.test(id) && (nodes[id] = true));
-          parsed = { coins: old.coins, brains: old.brains, ingots: old.ingots, cleared: old.cleared, nodes };
-          break;
-        }
-      }
+    if (!parsed && OLD_KEYS.some((k) => localStorage.getItem(k) !== null)) {
+      // había una partida de una versión anterior: se borra (y los enemigos descubiertos) y se da un regalo
+      OLD_KEYS.forEach((k) => localStorage.removeItem(k));
+      localStorage.removeItem('zmcd_seen');
+      gift = true;
     }
   } catch (e) {
     parsed = null;
   }
   state = withFree({ ...d, ...(parsed || {}), nodes: { ...d.nodes, ...((parsed && parsed.nodes) || {}) } });
+  if (gift) {
+    state.coins += GIFT_COINS;
+    state.giftMsg = true; // el menú lo avisa una vez
+    save();
+  }
   return state;
 }
 

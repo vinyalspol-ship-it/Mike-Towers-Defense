@@ -2383,9 +2383,9 @@ export default class GameScene extends Phaser.Scene {
     const hpRatio = Math.max(0.02, Math.min(1, this.lives / this.maxLives));
     this.hpFill.setDisplaySize(52 * 1.3 * hpRatio, 6 * 1.3);
     this.hpFill.setTint(hpRatio < 0.34 ? 0xffb74d : 0xffffff);
-    this.txtSupplies.setText(`🛠 ${Math.floor(this.supplies)}`);
-    this.txtWave.setText(`🌊 Oleada ${this.waveNo}/${this.level.waveCount}`);
-    this.txtTime.setText(`⏱ ${this.fmtTime(this.playTime)}`);
+    this.txtSupplies.setText(`${Math.floor(this.supplies)}`);
+    this.txtWave.setText(`Oleada ${this.waveNo}/${this.level.waveCount}`);
+    this.txtTime.setText(this.fmtTime(this.playTime));
     const buffs = [];
     if (this.buffs.horn > 0) buffs.push(`🎺 ${Math.ceil(this.buffs.horn)}s`);
     if (this.buffs.fever > 0) buffs.push(`💰 x2 ${Math.ceil(this.buffs.fever)}s`);
@@ -2439,6 +2439,28 @@ export default class GameScene extends Phaser.Scene {
       b.fillCircle(t.x, t.y, range);
       b.lineStyle(2, 0xffffff, 0.6);
       b.strokeCircle(t.x, t.y, range);
+    }
+
+    // defensas potenciadas: aros de color bajo la defensa y chispas que suben (cada bufo con su color)
+    //   naranja = Cuerno Vikingo · azul = más cadencia (aura del Monje, Aullido...) · rojo = más daño (aura, Inversión...) · ámbar = Sobrecarga
+    for (const t of this.towers) {
+      const cols = [];
+      if (this.buffs.horn > 0) cols.push(0xffb300);
+      if (t.auraSpeed > 1.001) cols.push(0x4fc3f7);
+      if (t.auraDmg > 1.001) cols.push(0xef5350);
+      if (this.buffs.overload > 0 && t.type === 'ingeniero') cols.push(0xff7043);
+      cols.forEach((c, i) => {
+        const pulse = 0.5 + 0.5 * Math.sin(this.now * 6 + i * 1.7);
+        b.lineStyle(3, c, 0.55 + 0.4 * pulse);
+        b.strokeCircle(t.x, t.y + 10, 30 + i * 5);
+        b.fillStyle(c, 0.1 + 0.08 * pulse);
+        b.fillCircle(t.x, t.y + 10, 30 + i * 5);
+        for (let k = 0; k < 3; k++) {
+          const ph = (this.now * 0.9 + k / 3 + i * 0.17 + t.x * 0.013) % 1; // chispa que sube y se desvanece
+          a.fillStyle(c, 1 - ph);
+          a.fillCircle(t.x + (k - 1) * 14 + (i - (cols.length - 1) / 2) * 6, t.y + 6 - ph * 38, 3 - ph);
+        }
+      });
     }
 
     // aro bajo las defensas: dorado con habilidad especial, plateado con muchas mejoras

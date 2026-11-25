@@ -12,3 +12,18 @@ export const TOWER_BLURB = {
   nigromante: 'Usa a los zombis contra ellos mismos: levanta caídos, maldice a los más fuertes y recoge almas.',
   druida: 'Guardián de la naturaleza: atrapa con raíces, suelta lobos y enjambres de polillas y frena a las hordas.',
 };
+
+// Frase corta que se ve en el árbol al tocar una defensa (sin números ni detalles)
+export const TREE_BLURB = {
+  barbaro: 'El Bárbaro golpea en cono a todo lo que se le acerca: barato, resistente e ideal para frenar la entrada.',
+  elfo: 'El Elfo dispara flechas desde muy lejos y es el mejor para cazar a los rápidos y a los jefes.',
+  alquimista: 'El Alquimista lanza pociones que dejan charcos dañinos y puede volver dorados a los zombis.',
+  mago: 'El Mago usa magia para destruir a grupos grandes y puede ralentizar a los enemigos.',
+  lancero: 'El Lancero atraviesa con su lanza a todos los zombis de una fila y puede anclarlos al suelo.',
+  monje: 'El Monje apenas ataca, pero potencia a las defensas que tiene cerca y puede aturdir enemigos.',
+  ingeniero: 'El Ingeniero coloca trampas y torretas, y llama a un autómata de chatarra.',
+  asedio: 'El Maestro de asedio lanza rocas pesadas desde muy lejos, pero no alcanza lo que tiene cerca.',
+  midas: 'El Rey Midas convierte zombis en oro y genera suministros extra, aunque casi no hace daño.',
+  nigromante: 'El Nigromante levanta zombis caídos para que luchen de tu lado y maldice a los más fuertes.',
+  druida: 'El Druida atrapa enemigos con raíces, suelta lobos y enjambres de polillas y frena a las hordas.',
+};

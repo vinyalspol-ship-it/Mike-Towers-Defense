@@ -277,7 +277,7 @@ export default class TreeScene extends Phaser.Scene {
     const nd = NODES[id];
     const owned = has(this.sv, id);
     const why = owned ? null : whyNot(this.sv, id);
-    this.info.setText(`${nd.name}: ${nd.desc}${owned ? '\n✅ Ya comprado' : why ? '\n⚠ ' + why : ''}`);
+    this.info.setText(`${nd.name}: ${nd.desc}${owned ? '\n✅ Ya comprado' : why && !why.includes('🧠') ? '\n⚠ ' + why : ''}`);
     (this.infoObjs || []).forEach((o) => o.destroy());
     hideTip();
     const gl = glossaryFor(nd.name + ' ' + nd.desc);

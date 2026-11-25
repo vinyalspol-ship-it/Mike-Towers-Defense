@@ -2,8 +2,8 @@
 import Phaser from 'phaser';
 import { W, H, FONT, EMOJI_FONT, COL } from '../config.js';
 import { LEVELS } from '../data/levels.js';
-import { load, save, reset } from '../storage.js';
-import { makeButton, title } from '../ui.js';
+import { load, save, reset, GIFT_COINS } from '../storage.js';
+import { makeButton, title, woodPanel } from '../ui.js';
 import { musicOn, toggleMusic, bindMusicKey } from '../music.js';
 import { addFullscreenButton } from '../fullscreen.js';
 
@@ -14,6 +14,33 @@ export default class MenuScene extends Phaser.Scene {
 
   init(data) {
     this.page = (data && data.page) || 0;
+  }
+
+  // Aviso único para quien tenía una partida de una versión anterior: se ha reiniciado y recibe un regalo
+  showGift(sv) {
+    sv.giftMsg = false;
+    save();
+    const objs = [];
+    const add = (o) => (objs.push(o), o);
+    add(this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setDepth(200).setInteractive());
+    add(woodPanel(this, W / 2 - 330, 170, 660, 300, 201, 16));
+    add(title(this, W / 2, 215, '🎁 ¡Juego actualizado!', 34).setDepth(202));
+    add(
+      this.add
+        .text(W / 2, 320, `Hemos cambiado muchas cosas y tu partida anterior se ha reiniciado.\nComo disculpa, ¡te regalamos ${GIFT_COINS} monedas!`, {
+          fontFamily: EMOJI_FONT,
+          fontSize: '22px',
+          color: '#fff4d6',
+          align: 'center',
+          lineSpacing: 8,
+          stroke: '#2e1c0f',
+          strokeThickness: 4,
+          wordWrap: { width: 580 },
+        })
+        .setOrigin(0.5)
+        .setDepth(202)
+    );
+    add(makeButton(this, W / 2 - 100, 392, 200, 56, 'Aceptar', () => objs.forEach((o) => o.destroy && o.destroy()), { fontSize: 24, fill: 0x2d6a4f, depth: 203 }));
   }
 
   create() {
@@ -121,6 +148,7 @@ export default class MenuScene extends Phaser.Scene {
     paintMusic(musicOn());
     bindMusicKey(this, paintMusic);
     addFullscreenButton(this, W - 62 - 58, 8, 52, 38, 20); // pantalla completa (junto al botón de música)
+    if (sv.giftMsg) this.showGift(sv);
 
     makeButton(this, 750, 506, 230, 70, '⚔ Equipo', () => this.scene.start('Team'), { fill: 0x2f6f4a, fontSize: 26, depth: 20 });
     makeButton(this, 996, 506, 244, 70, '📖 Códice', () => this.scene.start('Codex'), { fill: 0x7b3f8f, fontSize: 26, depth: 20 });
