@@ -8,6 +8,7 @@
 // Cada nodo: { name, desc, cost, cur, req:[ids], parent:id (para la línea), icon, x, y, kind, color }
 import { TOWERS, TOWER_ORDER, PATH_KEYS } from './towers.js';
 import { TREE_BLURB } from './blurbs.js';
+import { iconKeyFor } from '../upgradeIcons.js';
 
 export const NODES = {};
 const rad = (d) => (d * Math.PI) / 180;
@@ -162,6 +163,7 @@ for (const id of TOWER_ORDER) {
         desc: `${t.name} · camino ${P} (${path.name}) · nivel ${n + 1}: ${upg.name}. ${upg.desc}.`,
         cost: n === 0 ? TIER1_COST[id] : Math.round(TIER_COST[n] * COST_MULT[id]),
         icon: String(n + 1),
+        img: iconKeyFor(upg.name, upg.desc), // icono de la mejora
         kind: n === 3 ? 'big' : 'path',
         req: n === 0 ? [charId, 'root'] : [prev],
         parent: prev,

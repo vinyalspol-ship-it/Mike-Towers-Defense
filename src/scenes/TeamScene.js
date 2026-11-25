@@ -95,9 +95,10 @@ export default class TeamScene extends Phaser.Scene {
       icon.setScale(64 / icon.width).setAlpha(open ? 1 : 0.45);
       const st = { fontFamily: FONT, color: COL.cream, stroke: '#2e1c0f', strokeThickness: 3 };
       const name = this.add.text(x + 86, y + 14, def.name, { ...st, fontSize: '17px', wordWrap: { width: 104 } }).setDepth(11).setAlpha(open ? 1 : 0.6);
-      const cost = this.add.text(x + 86, y + 58, `🛠 ${def.cost}`, { ...st, fontFamily: EMOJI_FONT, fontSize: '16px', color: '#ffd23f' }).setDepth(11).setAlpha(open ? 1 : 0.6);
+      const costIcon = this.add.image(x + 96, y + 68, 'icon_01').setDisplaySize(20, 20).setDepth(11).setAlpha(open ? 1 : 0.6);
+      const cost = this.add.text(x + 112, y + 58, `${def.cost}`, { ...st, fontFamily: EMOJI_FONT, fontSize: '16px', color: '#ffd23f' }).setDepth(11).setAlpha(open ? 1 : 0.6);
       const desc = this.add.text(x + 12, y + 94, open ? def.desc : '🔒 Desbloquéala en el árbol de mejoras', { ...st, fontFamily: EMOJI_FONT, fontSize: '13px', wordWrap: { width: 176 } }).setDepth(11).setAlpha(open ? 1 : 0.7);
-      const objs = [bg, icon, name, cost, desc];
+      const objs = [bg, icon, name, cost, costIcon, desc];
       const gl = open ? glossaryFor(def.desc) : [];
       if (gl.length) objs.push(...infoIcon(this, x + 180, y + 66, gl, 13)); // "i": aclara términos de la descripción
       if (pos >= 0) objs.push(this.add.text(x + 188, y + 136, `✔${pos + 1}`, { ...st, fontSize: '20px', color: '#ffd23f' }).setOrigin(1, 0).setDepth(12));

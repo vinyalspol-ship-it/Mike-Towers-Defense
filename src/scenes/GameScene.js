@@ -7,6 +7,7 @@ import { load, save } from '../storage.js';
 import { has, gemRates, COINS_PER_KILL, pathTierUnlocked, towerUnlocked, START_LIVES, wallLives, maxSlots } from '../data/tree.js';
 import { makeButton, woodPanel, iconButton, infoIcon, hideTip } from '../ui.js';
 import { glossaryFor } from '../data/glossary.js';
+import { iconKeyFor } from '../upgradeIcons.js';
 import { bindMusicKey } from '../music.js';
 import { playFx } from '../art.js';
 import { NewTowers, NEW_TYPES } from '../newTowers.js';
@@ -443,8 +444,10 @@ export default class GameScene extends Phaser.Scene {
       icon.setScale((compact ? 34 : 52) / icon.width);
       const shortName = compact ? d.name.split(' ')[0] : d.name;
       const name = this.add.text(x + cw / 2, y + (compact ? 45 : 82), shortName, { ...st, fontSize: compact ? '10px' : '13px' }).setOrigin(0.5).setDepth(43);
-      const cost = this.add.text(x + cw / 2, y + (compact ? 58 : 112), `${d.cost} 🛠`, { ...st, fontFamily: EMOJI_FONT, fontSize: compact ? '12px' : '17px' }).setOrigin(0.5).setDepth(43);
-      this.slotObjs.push({ id, bg, num, icon, name, cost, key: '' });
+      const cy = y + (compact ? 58 : 112);
+      const cost = this.add.text(x + cw / 2 + 4, cy, `${d.cost}`, { ...st, fontFamily: EMOJI_FONT, fontSize: compact ? '12px' : '17px' }).setOrigin(1, 0.5).setDepth(43);
+      const costIcon = this.add.image(x + cw / 2 + 4 + (compact ? 8 : 11), cy, 'icon_01').setDisplaySize(compact ? 13 : 18, compact ? 13 : 18).setDepth(43);
+      this.slotObjs.push({ id, bg, num, icon, name, cost, costIcon, key: '' });
     });
   }
   updateSlots() {
@@ -454,6 +457,7 @@ export default class GameScene extends Phaser.Scene {
       this._slotsShown = show;
       for (const s of this.slotObjs) {
         [s.bg, s.num, s.icon, s.name, s.cost].forEach((o) => o.setVisible(show));
+        s.costIcon.setVisible(show && towerUnlocked(this.sv, s.id));
         s.bg.input.enabled = show;
       }
     }
@@ -471,8 +475,9 @@ export default class GameScene extends Phaser.Scene {
       s.icon.setAlpha(a);
       s.name.setAlpha(a);
       s.cost.setAlpha(a);
+      s.costIcon.setAlpha(a).setVisible(open && show);
       s.cost.setColor(open && !afford ? '#ff9e80' : COL.cream);
-      s.cost.setText(open ? `${TOWERS[s.id].cost} 🛠` : '🔒');
+      s.cost.setText(open ? `${TOWERS[s.id].cost}` : '🔒');
     }
   }
 
@@ -1380,8 +1385,15 @@ export default class GameScene extends Phaser.Scene {
         const target = this.pickTarget(t, s.range);
         if (!target) return;
         const ang = Math.atan2(target.y - t.y, target.x - t.x);
-        t.swings = (t.swings || 0) + 1;
-        const multi = s.multi && t.swings % 4 === 0; // Ataque múltiple: cada 4º ataque es un ataque triple (tres golpes seguidos)
+        // Ataque múltiple: tras 3 ataques normales, el siguiente es triple (tres golpes seguidos). El contador solo cuenta
+        // los ataques normales y se reinicia tras el triple (y mientras no se tenga la mejora).
+        let multi = false;
+        if (s.multi) {
+          if ((t.normalHits || 0) >= 3) {
+            multi = true;
+            t.normalHits = 0;
+          } else t.normalHits = (t.normalHits || 0) + 1;
+        } else t.normalHits = 0;
         const full = s.spin;
         const strike = () => {
           for (const e of this.enemies) {
@@ -2275,16 +2287,18 @@ export default class GameScene extends Phaser.Scene {
         add(this.add.text(x + 10, y0 + 32, 'Camino completo', { ...tx, fontSize: '17px', color: '#a5d6a7' }).setDepth(43));
         return;
       }
-      add(this.add.text(x + 10, y0 + 27, `Nivel ${st.tier}`, { ...tx, fontSize: '15px', color: '#ffd23f' }).setDepth(43).setAlpha(a));
-      const nm = add(this.add.text(x + 10, y0 + 45, st.upg.name, { ...tx, fontSize: '14px', color: '#ffffff', fontStyle: 'bold' }).setDepth(43).setAlpha(a));
-      const dy = y0 + 45 + nm.height + 2;
+      add(this.add.image(x + 28, y0 + 42, iconKeyFor(st.upg.name, st.upg.desc)).setDepth(43).setAlpha(a)); // icono de la mejora
+      add(this.add.text(x + 48, y0 + 27, `Nivel ${st.tier}`, { ...tx, fontSize: '15px', color: '#ffd23f' }).setDepth(43).setAlpha(a));
+      const nm = add(this.add.text(x + 48, y0 + 45, st.upg.name, { ...tx, wordWrap: { width: CW - 60 }, fontSize: '14px', color: '#ffffff', fontStyle: 'bold' }).setDepth(43).setAlpha(a));
+      const dy = Math.max(y0 + 45 + nm.height + 2, y0 + 62);
       if (st.state === 'ok') {
+        add(this.add.image(x + 20, y0 + BH - 16, 'icon_01').setDisplaySize(22, 22).setDepth(43).setAlpha(a));
         add(this.add.text(x + 10, dy, st.upg.desc, { ...tx, fontSize: '12px', color: '#e8dcc0' }).setDepth(43).setAlpha(a));
         const gl = glossaryFor(`${st.upg.name} ${st.upg.desc}`);
         if (gl.length) infoIcon(this, x + CW - 14, y0 + 36, gl, 44).forEach((o) => add(o)); // "i": aclara términos (dorados, armadura...)
         add(
           this.add
-            .text(x + 10, y0 + BH - 26, `🛠 ${price}${price === 0 ? ' ¡GRATIS!' : price < st.upg.cost ? ' (rebaja)' : ''}`, { ...tx, fontSize: '18px', color: this.supplies >= price ? '#ffd23f' : '#ff8a80' })
+            .text(x + 32, y0 + BH - 26, `${price}${price === 0 ? ' ¡GRATIS!' : price < st.upg.cost ? ' (rebaja)' : ''}`, { ...tx, fontSize: '18px', color: this.supplies >= price ? '#ffd23f' : '#ff8a80' })
             .setDepth(43)
         );
       } else {
@@ -2379,7 +2393,7 @@ export default class GameScene extends Phaser.Scene {
       );
     }
 
-    this.txtLives.setText(`❤ ${this.lives}`);
+    this.txtLives.setText(`${this.lives}`);
     const hpRatio = Math.max(0.02, Math.min(1, this.lives / this.maxLives));
     this.hpFill.setDisplaySize(52 * 1.3 * hpRatio, 6 * 1.3);
     this.hpFill.setTint(hpRatio < 0.34 ? 0xffb74d : 0xffffff);
@@ -2400,7 +2414,7 @@ export default class GameScene extends Phaser.Scene {
         ? 'Última oleada'
         : cool > 0 && !this.queue.length
           ? `⏳ ${Math.ceil(cool)} s`
-          : `▶ Oleada${bonus ? ` +${bonus}🛠` : ''}${this.countdown < 9000 ? ` (${Math.ceil(this.countdown)})` : ''}`
+          : `▶ Oleada${bonus ? ` +${bonus}` : ''}${this.countdown < 9000 ? ` (${Math.ceil(this.countdown)})` : ''}`
     );
 
     const bt = this.tutorialText();

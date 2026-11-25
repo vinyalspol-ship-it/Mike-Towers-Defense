@@ -1,5 +1,6 @@
 ﻿// Carga de arte (pack Tiny Swords, copiado con nombres limpios en public/assets/game)
 // y registro de animaciones.
+import { ICON_IDS } from './upgradeIcons.js';
 const P = 'assets/game/';
 
 // [clave, archivo, ancho de fotograma, alto de fotograma, nº de fotogramas]
@@ -90,7 +91,7 @@ const ANIMS = [
   ['golem_atk', 'golem_atk', 14, 0],
   ['orc_walk', 'orc_walk', 10, -1],
   ['sol_walk', 'sol_walk', 10, -1],
-  ['gob_run', 'gob_run', 10, -1],
+  ['gob_run', 'gob_run', 9, -1, [0, 2, 4, 6]], // los fotogramas impares de la hoja están vacíos
   ['menu_warrior_run', 'menu_warrior_run', 9, -1],
   ['bush1', 'bush1', 6, -1],
   ['bush2', 'bush2', 6, -1],
@@ -116,17 +117,19 @@ export function loadArt(scene) {
   for (const key of IMAGES) scene.load.image(key, P + key + '.png');
   // interfaz (pack Mediavel Free): tablón de madera, barra de vida, botones, iconos, velas y dagas
   for (const key of ['ui_panel', 'ui_hp_frame', 'ui_hp_fill', 'ui_candle1', 'ui_candle2', 'ui_dagger1', 'ui_dagger2', 'ui_sign']) scene.load.image(key, P + 'ui/' + key + '.png');
+  // iconos de mejoras (Raven Fantasy Icons)
+  for (const k of Object.keys(ICON_IDS)) scene.load.image('ic_' + k, P + 'icons/ic_' + k + '.png');
   scene.load.spritesheet('ui_btns', P + 'ui/ui_btns.png', { frameWidth: 16, frameHeight: 16 }); // 8 columnas x 4 filas
   scene.load.spritesheet('ui_icons', P + 'ui/ui_icons.png', { frameWidth: 16, frameHeight: 16 }); // 3 columnas x 4 filas
 }
 
 export function registerAnims(scene) {
-  for (const [key, sheet, fps, repeat] of ANIMS) {
+  for (const [key, sheet, fps, repeat, only] of ANIMS) {
     if (scene.anims.exists(key)) continue;
     const n = SHEETS.find((s) => s[0] === sheet)[4];
     scene.anims.create({
       key,
-      frames: scene.anims.generateFrameNumbers(sheet, { start: 0, end: n - 1 }),
+      frames: scene.anims.generateFrameNumbers(sheet, only ? { frames: only } : { start: 0, end: n - 1 }),
       frameRate: fps,
       repeat,
     });

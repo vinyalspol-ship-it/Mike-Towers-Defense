@@ -118,29 +118,38 @@ export default class TreeScene extends Phaser.Scene {
       const ring = owned ? 0xfff2a8 : buyable ? n.color : 0x3b3860;
       const halo = this.add.circle(n.x, n.y, radius + 9, owned ? 0xffd23f : n.color, owned ? 0.22 : buyable ? 0.18 : 0.05);
       const star = this.add.circle(n.x, n.y, radius, fill).setStrokeStyle(4, ring, owned || buyable ? 1 : 0.7);
-      const icon = this.add
-        .text(n.x, n.y, n.icon, {
-          fontFamily: EMOJI_FONT,
-          fontSize: n.kind === 'path' || n.kind === 'big' ? '24px' : '28px',
-          color: owned ? '#2e1c0f' : '#ffffff',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
+      let icon;
+      if (n.kind === 'char' && n.tower && TOWER_ART[n.tower]) {
+        icon = this.add.image(n.x, n.y, TOWER_ART[n.tower].avatar).setTint(TOWER_ART[n.tower].tint ?? 0xffffff);
+        icon.setScale(46 / icon.width); // la defensa
+      } else if (n.img) {
+        icon = this.add.image(n.x, n.y, n.img); // icono de la mejora
+        icon.setScale(n.kind === 'big' ? 1.0 : 0.9);
+      } else {
+        icon = this.add
+          .text(n.x, n.y, n.icon, { fontFamily: EMOJI_FONT, fontSize: '28px', color: owned ? '#2e1c0f' : '#ffffff', fontStyle: 'bold' })
+          .setOrigin(0.5);
+      }
       icon.setAlpha(owned || buyable ? 1 : 0.5);
-      const cost = owned ? '✓' : n.cur === 'brains' ? `${n.cost}🧠` : n.cost ? `${n.cost}🪙` : 'Gratis';
+      const extra = [];
+      if (n.img && n.tier) {
+        // nivel de la mejora (1-4) en una esquina
+        extra.push(this.add.text(n.x + radius * 0.62, n.y + radius * 0.52, String(n.tier), { fontFamily: FONT, fontSize: '13px', color: '#ffffff', fontStyle: 'bold', stroke: '#0c0a1c', strokeThickness: 3 }).setOrigin(0.5));
+      }
+      const lblColor = owned ? '#ffe9a0' : buyable ? '#ffffff' : '#8b88b0';
       const label = this.add
-        .text(n.x, n.y + radius + 5, `${n.name}\n${cost}`, {
-          fontFamily: EMOJI_FONT,
-          fontSize: '12px',
-          color: owned ? '#ffe9a0' : buyable ? '#ffffff' : '#8b88b0',
-          align: 'center',
-          stroke: '#0c0a1c',
-          strokeThickness: 3,
-          wordWrap: { width: 120 },
-        })
+        .text(n.x, n.y + radius + 5, n.name, { fontFamily: EMOJI_FONT, fontSize: '12px', color: lblColor, align: 'center', stroke: '#0c0a1c', strokeThickness: 3, wordWrap: { width: 120 } })
         .setOrigin(0.5, 0);
-      this.world.add([halo, star, icon, label]);
-      this.nodeObjs.push(halo, star, icon, label);
+      // coste: icono de moneda + número (los cerebros siguen con su emoji)
+      const costStr = owned ? '✓' : n.cur === 'brains' ? `${n.cost}🧠` : n.cost ? String(n.cost) : 'Gratis';
+      const cy = label.y + label.height + 1;
+      const costTx = this.add.text(n.x, cy, costStr, { fontFamily: EMOJI_FONT, fontSize: '12px', color: lblColor, stroke: '#0c0a1c', strokeThickness: 3 }).setOrigin(0.5, 0);
+      if (!owned && n.cur !== 'brains' && n.cost) {
+        costTx.x += 8;
+        extra.push(this.add.image(costTx.x - costTx.width / 2 - 8, cy + 7, 'icon_03').setDisplaySize(15, 15));
+      }
+      this.world.add([halo, star, icon, label, costTx, ...extra]);
+      this.nodeObjs.push(halo, star, icon, label, costTx, ...extra);
       if (buyable) {
         this.tweens.add({ targets: halo, alpha: 0.4, scale: 1.12, yoyo: true, repeat: -1, duration: 900 + (n.x % 5) * 60 });
       }
@@ -235,16 +244,15 @@ export default class TreeScene extends Phaser.Scene {
     makeButton(this, 14, 10, 120, 40, '← Menú', () => this.scene.start('Menu'), { fontSize: 18, depth: 12 });
     makeButton(this, 146, 10, 130, 40, '⊙ Centrar', () => this.centerOn({ x: 0, y: 0 }), { fontSize: 16, depth: 12 });
     makeButton(this, 288, 10, 200, 40, '💰 Gastar todo el oro', () => this.buyAll(), { fontSize: 16, fill: 0x7a5c00, depth: 12 });
-    this.add
-      .text(W - 20, 16, `🪙 ${this.sv.coins}   🧠 ${this.sv.brains}   🥇 ${this.sv.ingots}`, {
-        fontFamily: EMOJI_FONT,
-        fontSize: '22px',
-        color: '#fff4d6',
-        stroke: '#2e1c0f',
-        strokeThickness: 4,
-      })
-      .setOrigin(1, 0)
-      .setDepth(11);
+    // contadores: lingotes, cerebros y monedas (de derecha a izquierda), con su icono
+    let hx = W - 20;
+    [['ingot', this.sv.ingots, 'ic_ingot'], ['brain', this.sv.brains, null], ['coin', this.sv.coins, 'icon_03']].forEach(([, v, key]) => {
+      const tx = this.add.text(hx, 16, String(v), { fontFamily: EMOJI_FONT, fontSize: '22px', color: '#fff4d6', stroke: '#2e1c0f', strokeThickness: 4 }).setOrigin(1, 0).setDepth(11);
+      hx -= tx.width + 8;
+      if (key) this.add.image(hx - 12, 29, key).setDisplaySize(26, 26).setDepth(11);
+      else this.add.text(hx - 12, 28, '🧠', { fontFamily: EMOJI_FONT, fontSize: '22px' }).setOrigin(0.5).setDepth(11);
+      hx -= 38;
+    });
 
     // panel inferior con la descripción del nodo elegido
     this.add.rectangle(0, PANEL_TOP, W, H - PANEL_TOP, COL.wood).setOrigin(0, 0).setDepth(10);
