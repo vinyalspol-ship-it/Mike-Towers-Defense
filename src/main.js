@@ -6,6 +6,7 @@ import TreeScene from './scenes/TreeScene.js';
 import GameScene from './scenes/GameScene.js';
 import TeamScene from './scenes/TeamScene.js';
 import CodexScene from './scenes/CodexScene.js';
+import TitleScene from './scenes/TitleScene.js';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -15,7 +16,7 @@ const game = new Phaser.Game({
   backgroundColor: '#2e1c0f',
   pixelArt: true, // sin suavizado: el pixel art se ve nítido
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [PreloadScene, MenuScene, TreeScene, GameScene, TeamScene, CodexScene],
+  scene: [PreloadScene, TitleScene, MenuScene, TreeScene, GameScene, TeamScene, CodexScene],
 });
 
 // Útil para depurar desde la consola del navegador

@@ -23,7 +23,7 @@ export default class PreloadScene extends Phaser.Scene {
   create() {
     registerAnims(this);
     startMusic(this);
-    this.scene.start('Menu');
+    this.scene.start('Title'); // pantalla de inicio -> selector de niveles
   }
 }
 

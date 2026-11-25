@@ -119,6 +119,10 @@ export function loadArt(scene) {
   for (const key of ['ui_panel', 'ui_hp_frame', 'ui_hp_fill', 'ui_candle1', 'ui_candle2', 'ui_dagger1', 'ui_dagger2', 'ui_sign']) scene.load.image(key, P + 'ui/' + key + '.png');
   // iconos de mejoras (Raven Fantasy Icons)
   for (const k of Object.keys(ICON_IDS)) scene.load.image('ic_' + k, P + 'icons/ic_' + k + '.png');
+  // pantalla de inicio: fondo, logo y botón PLAY
+  scene.load.image('title_bg', P + 'title/title_bg.jpg');
+  scene.load.image('title_logo', P + 'title/title_logo.png');
+  scene.load.image('title_play', P + 'title/title_play.png');
   scene.load.spritesheet('ui_btns', P + 'ui/ui_btns.png', { frameWidth: 16, frameHeight: 16 }); // 8 columnas x 4 filas
   scene.load.spritesheet('ui_icons', P + 'ui/ui_icons.png', { frameWidth: 16, frameHeight: 16 }); // 3 columnas x 4 filas
 }
