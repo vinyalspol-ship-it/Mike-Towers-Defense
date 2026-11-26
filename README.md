@@ -15,4 +15,5 @@ Arrastra una defensa al mapa (o 1-9 y clic), toca una defensa para mejorarla, Es
 
 ## Créditos
 - Arte: Tiny Swords (Pixel Frog), Tiny RPG Character Asset Pack, Mediavel Free UI, Crow Animations, Mecha-stone Golem, Hobgoblin. Revisar la licencia de cada pack antes de redistribuir.
+- Tipografía: Nunito (Vernon Adams, Jacques Le Bailly y colaboradores), licencia SIL Open Font License, incluida en `public/assets/fonts`.
 - Música: "Frost" de Alexander Nakarada (CC BY 4.0), https://www.serpentsoundstudios.com

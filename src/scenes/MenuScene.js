@@ -6,6 +6,8 @@ import { load, save, reset, GIFT_COINS } from '../storage.js';
 import { makeButton, title, woodPanel } from '../ui.js';
 import { musicOn, toggleMusic, bindMusicKey } from '../music.js';
 import { addFullscreenButton } from '../fullscreen.js';
+import { TOWER_ART } from '../towerArt.js';
+import { STAGES, PER_STAGE, stageOf, teamFor } from '../levelInfo.js';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -43,13 +45,101 @@ export default class MenuScene extends Phaser.Scene {
     add(makeButton(this, W / 2 - 100, 392, 200, 56, 'Aceptar', () => objs.forEach((o) => o.destroy && o.destroy()), { fontSize: 24, fill: 0x2d6a4f, depth: 203 }));
   }
 
+  // Ficha de un nivel: número, etapa, estrellas, equipo con sus iconos, ver mapa, enemigos y jugar
+  openLevel(lv, i) {
+    const sv = this.sv;
+    const unlocked = i === 0 || sv.cleared[LEVELS[i - 1].id];
+    const done = sv.cleared[lv.id];
+    const st = (sv.stars && sv.stars[lv.id]) || 0;
+    const stageNum = Math.floor(i / PER_STAGE) + 1;
+    const objs = [];
+    const add = (o) => (objs.push(o), o);
+    const close = () => objs.forEach((o) => o.destroy && o.destroy());
+    const cx = W / 2;
+    add(this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0).setDepth(100).setInteractive());
+    add(woodPanel(this, cx - 310, 96, 620, 520, 101, 16));
+    add(title(this, cx, 142, `Nivel ${lv.id}`, 40).setDepth(102));
+    add(this.add.text(cx, 184, `${lv.name.replace(/ · \d+/, '')} · Etapa ${stageNum}: ${STAGES[stageNum - 1].name}`, { fontFamily: FONT, fontSize: '18px', color: '#ffe9a0', fontStyle: 'bold', stroke: '#2e1c0f', strokeThickness: 4 }).setOrigin(0.5).setDepth(102));
+    add(this.add.text(cx, 214, lv.subtitle, { fontFamily: FONT, fontSize: '16px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 3, align: 'center', wordWrap: { width: 560 } }).setOrigin(0.5, 0).setDepth(102));
+    add(
+      this.add
+        .text(cx, 272, done ? `${'★'.repeat(st)}${'☆'.repeat(3 - st)}` : unlocked ? 'Todavía sin completar' : '🔒 Supera el nivel anterior para jugarlo', { fontFamily: EMOJI_FONT, fontSize: done ? '40px' : '20px', color: '#ffd23f', stroke: '#2e1c0f', strokeThickness: 5 })
+        .setOrigin(0.5)
+        .setDepth(102)
+    );
+    // equipo con el que se jugaría
+    const team = teamFor(sv, lv);
+    add(this.add.text(cx, 312, 'Tu equipo', { fontFamily: FONT, fontSize: '18px', color: '#ffe9a0', fontStyle: 'bold', stroke: '#2e1c0f', strokeThickness: 4 }).setOrigin(0.5).setDepth(102));
+    const iw = 66;
+    team.forEach((id, k) => {
+      const ix = cx - ((team.length - 1) * iw) / 2 + k * iw;
+      add(this.add.rectangle(ix, 362, 58, 58, 0x2e1c0f, 0.6).setStrokeStyle(2, 0xb08d57).setDepth(102));
+      const im = add(this.add.image(ix, 362, TOWER_ART[id].avatar).setDepth(103).setTint(TOWER_ART[id].tint ?? 0xffffff));
+      im.setScale(52 / im.width);
+    });
+    // botones
+    const play = add(makeButton(this, cx - 280, 418, 270, 66, '▶ Jugar', () => this.scene.start('Game', { level: lv.id }), { fontSize: 26, fill: 0x2d6a4f, depth: 103 }));
+    play.setEnabled(!!unlocked);
+    add(makeButton(this, cx + 10, 418, 270, 66, 'Ver mapa', () => this.showMinimap(lv), { fontSize: 24, fill: 0x2f5f8a, depth: 103 }));
+    add(makeButton(this, cx - 280, 500, 270, 58, 'Enemigos del nivel', () => this.scene.start('Codex', { mode: 'level', level: lv.id, back: Math.floor(i / PER_STAGE) }), { fontSize: 20, fill: 0x7b3f8f, depth: 103, leftIcon: 'ic_book' }));
+    add(makeButton(this, cx + 10, 500, 270, 58, 'Cerrar', close, { fontSize: 22, fill: 0x5b4636, depth: 103 }));
+  }
+
+  // Imagen pequeña del mapa del nivel: hierba, camino(s), entrada y castillo
+  showMinimap(lv) {
+    const objs = [];
+    const add = (o) => (objs.push(o), o);
+    const cols = lv.zoom ? 30 : 20;
+    const rows = lv.zoom ? 12 : 8;
+    const MW = 640;
+    const cs = MW / cols;
+    const MH = rows * cs;
+    const x0 = W / 2 - MW / 2;
+    const y0 = H / 2 - MH / 2 + 10;
+    add(this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0, 0).setDepth(120).setInteractive());
+    add(woodPanel(this, x0 - 24, y0 - 64, MW + 48, MH + 140, 121, 16));
+    add(this.add.text(W / 2, y0 - 34, `Mapa · Nivel ${lv.id}`, { fontFamily: FONT, fontSize: '24px', color: '#ffe9a0', fontStyle: 'bold', stroke: '#2e1c0f', strokeThickness: 5 }).setOrigin(0.5).setDepth(122));
+    const g = add(this.add.graphics().setDepth(122));
+    g.fillStyle(0x5d8a3a, 1);
+    g.fillRect(x0, y0, MW, MH);
+    g.lineStyle(1, 0x000000, 0.08);
+    for (let c = 1; c < cols; c++) g.lineBetween(x0 + c * cs, y0, x0 + c * cs, y0 + MH);
+    for (let r = 1; r < rows; r++) g.lineBetween(x0, y0 + r * cs, x0 + MW, y0 + r * cs);
+    const P = ([c, r]) => ({ x: x0 + (Math.max(-0.5, Math.min(cols - 0.5, c)) + 0.5) * cs, y: y0 + (r + 0.5) * cs });
+    const defs = lv.routes || [lv.path];
+    for (const [wdt, col] of [[cs * 0.9, 0x6d4c25], [cs * 0.7, 0xc9a46a]]) {
+      g.lineStyle(wdt, col, 1);
+      for (const d of defs) {
+        g.beginPath();
+        d.forEach((pt, k) => (k ? g.lineTo(P(pt).x, P(pt).y) : g.moveTo(P(pt).x, P(pt).y)));
+        g.strokePath();
+      }
+    }
+    const a = P(defs[0][0]);
+    const z = P(defs[0][defs[0].length - 1]);
+    g.fillStyle(0xe53935, 1);
+    g.fillTriangle(a.x - 4, a.y - 12, a.x + 14, a.y, a.x - 4, a.y + 12); // entrada
+    g.fillStyle(0x90a4ae, 1);
+    g.fillRect(z.x - 14, z.y - 14, 28, 28); // castillo
+    g.lineStyle(3, 0x37474f, 1);
+    g.strokeRect(z.x - 14, z.y - 14, 28, 28);
+    g.lineStyle(4, 0x2e1c0f, 1);
+    g.strokeRect(x0, y0, MW, MH);
+    add(this.add.text(W / 2, y0 + MH + 16, 'Rojo: entrada de los zombis · Gris: tu castillo', { fontFamily: FONT, fontSize: '16px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 3 }).setOrigin(0.5, 0).setDepth(122));
+    add(makeButton(this, W / 2 - 90, y0 + MH + 44, 180, 48, 'Cerrar', () => objs.forEach((o) => o.destroy && o.destroy()), { fontSize: 20, fill: 0x5b4636, depth: 123 }));
+  }
+
   create() {
     const sv = load();
+    this.sv = sv;
+    const pages = Math.ceil(LEVELS.length / PER_STAGE);
+    const page = Math.min(this.page, pages - 1);
+    const stage = stageOf(page * PER_STAGE); // cada 5 niveles cambia la etapa y el fondo
 
     // fondo de hierba con decoración y unidades animadas
-    for (let c = 0; c < 20; c++) for (let r = 0; r < 12; r++) this.add.image(c * 64, r * 64, 'grass', 10).setOrigin(0, 0).setDepth(0);
+    for (let c = 0; c < 20; c++) for (let r = 0; r < 12; r++) this.add.image(c * 64, r * 64, 'grass', 10).setOrigin(0, 0).setDepth(0).setTint(stage.tint);
     const g = this.add.graphics().setDepth(1);
-    g.fillStyle(0x000000, 0.28);
+    g.fillStyle(stage.shade, stage.alpha);
     g.fillRect(0, 0, W, H);
 
     const deco = [
@@ -65,7 +155,6 @@ export default class MenuScene extends Phaser.Scene {
     sheep.play('sheep_grass');
 
     // castillo y héroes a un lado; zombis desfilando al otro
-    this.add.image(1130, 215, 'castle').setScale(0.7).setDepth(4);
     const heroes = [['barbaro_idle', 90], ['elfo_idle', 170], ['mago_idle', 250], ['alq_idle', 330]];
     heroes.forEach(([k, x]) => {
       this.add.image(x, 668, 'shadow').setScale(0.42).setAlpha(0.5).setDepth(5);
@@ -75,7 +164,7 @@ export default class MenuScene extends Phaser.Scene {
     });
     const walkers = [['orc_walk', 0xffffff, 2.4], ['sol_walk', 0xffffff, 2.7], ['orc_walk', 0xd8ff50, 2.2], ['orc_walk', 0xe6c07a, 2.6]];
     walkers.forEach(([k, tint, sc], i) => {
-      const y = 600 + (i % 2) * 36;
+      const y = 572 + (i % 2) * 28;
       const z = this.add.sprite(-100 - i * 140, y, k).setOrigin(0.5, 0.58).setScale(sc).setTint(tint).setDepth(7 + y / 1000);
       z.play(k);
       this.tweens.add({ targets: z, x: W + 100, duration: 26000 + i * 3000, repeat: -1, delay: i * 2500 });
@@ -94,7 +183,7 @@ export default class MenuScene extends Phaser.Scene {
     this.add.rectangle(W / 2, 92 - 58, 888, 8, COL.woodLight).setDepth(11);
     title(this, W / 2, 80, 'ZOMBIES MUST COME DOWN', 54).setDepth(12);
     this.add
-      .text(W / 2, 126, (this.page ? 'TWD · Tierras Altas de Evelmore' : 'TWD · Praderas de Evelmore'), { fontFamily: FONT, fontSize: '22px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 4 })
+      .text(W / 2, 126, `TWD · ${stage.name}`, { fontFamily: FONT, fontSize: '22px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 4 })
       .setOrigin(0.5)
       .setDepth(12);
 
@@ -111,35 +200,58 @@ export default class MenuScene extends Phaser.Scene {
       })
       .setDepth(12);
 
-    // niveles en páginas de 10 (5 columnas x 2 filas) con una flecha a cada lado para cambiar de página
-    const PER = 10;
-    const pages = Math.ceil(LEVELS.length / PER);
-    const page = Math.min(this.page, pages - 1);
-    LEVELS.slice(page * PER, page * PER + PER).forEach((lv, j) => {
+    // ---- niveles: 5 por etapa, puntos con bandera sobre un camino que avanza de izquierda a derecha
+    const lvls = LEVELS.slice(page * PER_STAGE, page * PER_STAGE + PER_STAGE);
+    const pts = lvls.map((lv, j) => ({ x: 190 + j * 225, y: 360 + Math.sin(j * 1.35 + 0.4) * 34 }));
+    const full = [{ x: 30, y: pts[0].y + 12 }, ...pts, { x: W - 30, y: pts[pts.length - 1].y - 12 }];
+    const curve = new Phaser.Curves.Spline(full.flatMap((q) => [q.x, q.y]));
+    const road = this.add.graphics().setDepth(14);
+    road.lineStyle(40, 0x2e1c0f, 0.9);
+    curve.draw(road, 80);
+    road.lineStyle(30, stage.road, 1);
+    curve.draw(road, 80);
+    road.fillStyle(0xfff4d6, 0.45);
+    curve.getSpacedPoints(46).forEach((q, k) => k % 2 === 0 && road.fillCircle(q.x, q.y, 2.5)); // línea central discontinua
+    this.add
+      .text(W / 2, 236, `Etapa ${page + 1} de ${pages} · ${stage.name}`, { fontFamily: FONT, fontSize: '22px', color: '#ffe9a0', fontStyle: 'bold', stroke: '#2e1c0f', strokeThickness: 5 })
+      .setOrigin(0.5)
+      .setDepth(20);
+    lvls.forEach((lv, j) => {
       const i = LEVELS.indexOf(lv);
       const unlocked = i === 0 || sv.cleared[LEVELS[i - 1].id];
       const done = sv.cleared[lv.id];
       const st = (sv.stars && sv.stars[lv.id]) || 0;
-      const x = 64 + (j % 5) * 236;
-      const y = 226 + Math.floor(j / 5) * 134;
-      const stars = done ? `${'★'.repeat(st)}${'☆'.repeat(3 - st)}` : '';
-      const label = `${lv.name}  ${stars}\n${lv.subtitle}\n${unlocked ? 'Toca para jugar' : '🔒 Supera el nivel anterior'}`;
-      const b = makeButton(this, x, y, 228, 124, label, () => this.scene.start('Game', { level: lv.id }), {
-        fill: unlocked ? (lv.routes ? 0x7a5a1f : lv.boss ? 0x7b2d2d : lv.zoom ? 0x2f5a6f : 0x2f6f4a) : 0x4a3b2e,
-        fontSize: 14,
-        depth: 20,
-      });
-      b.setEnabled(!!unlocked);
+      const { x, y } = pts[j];
+      const gfx = this.add.graphics().setDepth(16);
+      gfx.fillStyle(0x000000, 0.3);
+      gfx.fillEllipse(x, y + 30, 70, 18);
+      // bandera
+      gfx.lineStyle(4, 0x3e2723, 1);
+      gfx.lineBetween(x + 20, y - 24, x + 20, y - 86);
+      gfx.fillStyle(lv.boss ? 0x8e24aa : done ? 0x43a047 : unlocked ? 0xe53935 : 0x7a7a7a, 1);
+      gfx.fillTriangle(x + 22, y - 86, x + 64, y - 74, x + 22, y - 62);
+      gfx.lineStyle(2, 0x2e1c0f, 1);
+      gfx.strokeTriangle(x + 22, y - 86, x + 64, y - 74, x + 22, y - 62);
+      // punto del nivel
+      if (unlocked && !done) {
+        const halo = this.add.circle(x, y, 44, 0xffd23f, 0.35).setDepth(16);
+        this.tweens.add({ targets: halo, scale: 1.18, alpha: 0.1, yoyo: true, repeat: -1, duration: 800 }); // el siguiente nivel por jugar
+      }
+      const dot = this.add.circle(x, y, 34, !unlocked ? 0x5a5048 : done ? 0xd4a017 : 0x2f8f5a).setStrokeStyle(5, 0x2e1c0f, 1).setDepth(17);
+      this.add.circle(x, y, 27).setStrokeStyle(2, 0xffffff, 0.35).setDepth(17);
+      this.add.text(x, y, unlocked ? String(lv.id) : '🔒', { fontFamily: EMOJI_FONT, fontSize: unlocked ? '30px' : '22px', color: '#ffffff', fontStyle: 'bold', stroke: '#2e1c0f', strokeThickness: 5 }).setOrigin(0.5).setDepth(18);
+      if (done) this.add.text(x, y + 46, `${'★'.repeat(st)}${'☆'.repeat(3 - st)}`, { fontFamily: FONT, fontSize: '22px', color: '#ffd23f', stroke: '#2e1c0f', strokeThickness: 4 }).setOrigin(0.5).setDepth(18);
+      this.add.text(x, y + (done ? 72 : 52), lv.name.replace(/ · \d+/, ''), { fontFamily: FONT, fontSize: '15px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 4, align: 'center', wordWrap: { width: 190 } }).setOrigin(0.5, 0).setDepth(18);
+      dot.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.openLevel(lv, i));
+      // libro de enemigos del nivel (abajo a la izquierda del punto)
+      const book = this.add.image(x - 40, y + 30, 'ic_book').setScale(0.95).setDepth(19).setInteractive({ useHandCursor: true });
+      book.on('pointerdown', () => this.scene.start('Codex', { mode: 'level', level: lv.id, back: page }));
     });
     if (pages > 1) {
-      const left = makeButton(this, 4, 226, 52, 258, '◀', () => this.scene.restart({ page: page - 1 }), { fontSize: 34, fill: 0x5b4636, depth: 20 });
+      const left = makeButton(this, 4, 250, 52, 250, '◀', () => this.scene.restart({ page: page - 1 }), { fontSize: 34, fill: 0x5b4636, depth: 20 });
       left.setEnabled(page > 0);
-      const right = makeButton(this, W - 56, 226, 52, 258, '▶', () => this.scene.restart({ page: page + 1 }), { fontSize: 34, fill: 0x5b4636, depth: 20 });
+      const right = makeButton(this, W - 56, 250, 52, 250, '▶', () => this.scene.restart({ page: page + 1 }), { fontSize: 34, fill: 0x5b4636, depth: 20 });
       right.setEnabled(page < pages - 1);
-      this.add
-        .text(W / 2, 492, `Página ${page + 1}/${pages} · niveles ${page * PER + 1}-${Math.min(LEVELS.length, page * PER + PER)}`, { fontFamily: FONT, fontSize: '15px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 3 })
-        .setOrigin(0.5)
-        .setDepth(20);
     }
     // música: botón y tecla M
     const mus = makeButton(this, W - 62, 8, 52, 38, '', () => paintMusic(toggleMusic(this)), { fill: 0x5b4636, depth: 20 });
@@ -151,7 +263,7 @@ export default class MenuScene extends Phaser.Scene {
     if (sv.giftMsg) this.showGift(sv);
 
     makeButton(this, 750, 506, 230, 70, '⚔ Equipo', () => this.scene.start('Team'), { fill: 0x2f6f4a, fontSize: 26, depth: 20 });
-    makeButton(this, 996, 506, 244, 70, '📖 Códice', () => this.scene.start('Codex'), { fill: 0x7b3f8f, fontSize: 26, depth: 20 });
+    makeButton(this, 996, 506, 244, 70, 'Códice', () => this.scene.start('Codex'), { fill: 0x7b3f8f, fontSize: 26, depth: 20, leftIcon: 'ic_book' });
 
     makeButton(this, 30, 506, 340, 70, '🌳 Árbol de mejoras', () => this.scene.start('Tree'), {
       fill: 0x6c3483,
@@ -204,7 +316,7 @@ export default class MenuScene extends Phaser.Scene {
     );
 
     this.add
-      .text(W / 2, H - 14, 'Prototipo jugable · Arte: Tiny Swords (Pixel Frog) y Tiny RPG Character Pack · Música: "Frost" de Alexander Nakarada (CC BY 4.0)', {
+      .text(W / 2, H - 14, 'Prototipo jugable · Arte: Tiny Swords (Pixel Frog) y Tiny RPG Character Pack · Música: "Frost" de Alexander Nakarada (CC BY 4.0) · Fuente: Nunito (SIL OFL)', {
         fontFamily: FONT,
         fontSize: '14px',
         color: COL.cream,

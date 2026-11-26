@@ -23,7 +23,10 @@ export default class PreloadScene extends Phaser.Scene {
   create() {
     registerAnims(this);
     startMusic(this);
-    this.scene.start('Title'); // pantalla de inicio -> selector de niveles
+    // Nunito debe estar cargada antes de dibujar texto (si no, el primer texto saldría con la fuente de reserva)
+    const fonts = ['400', '600', '700', '800'].map((w) => document.fonts.load(`${w} 16px Nunito`, 'AaÁáÑñ¿¡'));
+    const go = () => this.scene.start('Title'); // pantalla de inicio -> selector de niveles
+    Promise.race([Promise.all(fonts), new Promise((r) => setTimeout(r, 4000))]).then(go, go);
   }
 }
 

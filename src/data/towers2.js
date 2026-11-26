@@ -96,28 +96,28 @@ export const EXTRA_TOWERS = {
       A: {
         name: 'Trampero',
         tiers: [
-          { name: 'Cepos', desc: 'Hasta 3 cepos en el camino: atrapan 2 s (recarga 10 s)', cost: 30 },
-          { name: 'Minas', desc: 'Algunos cepos son minas que explotan en área', cost: 55 },
-          { name: 'Campo minado', desc: 'Hasta 6 trampas, que se recolocan solas a los 10 s', cost: 180 },
+          { name: 'Cepos', desc: 'Hasta 3 cepos en el camino: aturden 5 s (recarga 10 s)', cost: 30 },
+          { name: 'Minas', desc: 'Coloca 3 minas en el camino; al explotar, las repone a los 6 s', cost: 55 },
+          { name: 'Campo minado', desc: 'Hasta 6 cepos, que se recolocan solos a los 10 s', cost: 180 },
           { name: 'Detonación en cadena', desc: 'Una mina al explotar lanza una detonación en cruz (x1,5)', cost: 385 },
         ],
       },
       B: {
         name: 'Maquinista',
         tiers: [
-          { name: 'Torreta de ballesta', desc: 'Monta una torreta aliada que dispara sola', cost: 30 },
-          { name: 'Segunda torreta', desc: 'Dos torretas; cada una apunta a un objetivo distinto', cost: 55 },
-          { name: 'Autoajuste', desc: 'Cada 20 bajas de las torretas: +10% de daño (hasta +100%)', cost: 180 },
+          { name: 'Torreta de ballesta', desc: 'Monta una segunda torreta de ballesta (empieza con una)', cost: 30 },
+          { name: 'Batería de torretas', desc: 'El Ingeniero coloca +2 torretas (4 en total)', cost: 55 },
+          { name: 'Torretas especiales', desc: 'Cada torreta gana un efecto: triple disparo, lanza-cepos, disparo de fuego y marca (x1,5)', cost: 180 },
           { name: 'Sobrecarga', desc: 'ACTIVA: 8 s todos los ingenios disparan x3 (24 s)', cost: 385 },
         ],
       },
       C: {
         name: 'Inventor',
         tiers: [
-          { name: 'Chatarrero', desc: '10% de las bajas en su zona sueltan +2 suministros', cost: 30 },
-          { name: 'Engranaje', desc: 'La defensa más cercana gana +10% de alcance', cost: 55 },
-          { name: 'Taller móvil', desc: 'Una vez por oleada puedes mover otra defensa gratis', cost: 180 },
-          { name: 'Autómata', desc: 'Un golem de chatarra camina por el camino y encadena 3 zombis (15 s)', cost: 385 },
+          { name: 'Taller móvil', desc: 'Botón «Mover defensa»: pausa el juego y recoloca una defensa donde quieras (una vez por oleada)', cost: 45 },
+          { name: 'Engranaje', desc: '+15% de alcance para el Ingeniero y las defensas cercanas', cost: 95 },
+          { name: 'Chatarrero', desc: 'Cada baja dentro de su alcance da +4 suministros', cost: 180 },
+          { name: 'Autómata', desc: 'Un golem de chatarra persigue a los zombis por el camino y encadena 3 (30 s)', cost: 385 },
         ],
       },
     },

@@ -28,7 +28,7 @@ export default class TeamScene extends Phaser.Scene {
     this.add.rectangle(0, 0, W, H, 0x000000, 0.45).setOrigin(0, 0).setDepth(1);
     title(this, W / 2, 46, '⚔ Equipo de batalla', 40).setDepth(12);
     makeButton(this, 14, 14, 130, 42, '← Menú', () => this.scene.start('Menu'), { fontSize: 18, depth: 12 });
-    makeButton(this, W - 214, 14, 200, 42, '📖 Códice', () => this.scene.start('Codex'), { fontSize: 18, fill: 0x6c3483, depth: 12 });
+    makeButton(this, W - 214, 14, 200, 42, 'Códice', () => this.scene.start('Codex'), { fontSize: 18, fill: 0x6c3483, depth: 12, leftIcon: 'ic_book' });
 
     this.info = this.add.text(W / 2, 100, '', { fontFamily: EMOJI_FONT, fontSize: '20px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(12);
     this.cards = [];

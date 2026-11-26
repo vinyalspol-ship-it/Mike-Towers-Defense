@@ -27,25 +27,25 @@ export const TOWERS = {
           { name: 'Furia', desc: 'Ataca un 30% más rápido', cost: 35 },
           { name: 'Espada larga', desc: '+15% de alcance', cost: 55 },
           { name: 'Ataque giratorio', desc: 'Golpea a todo su alrededor (360º)', cost: 110 },
-          { name: 'Sed de sangre', desc: 'Cada baja cerca suya: +10% vel. ataque 3 s (máx. x5)', cost: 200 }, // inventada
+          { name: 'Sed de sangre', desc: 'Tras cada baja suya, sus críticos hacen x5 de daño durante 5 s', cost: 200 }, // inventada
         ],
       },
       B: {
         name: 'Vikingo',
         tiers: [
           { name: 'Filo afilado', desc: '+25% de daño', cost: 35 }, // inventada
-          { name: 'Golpe contundente', desc: 'Empuja hacia atrás a UN zombi por golpe', cost: 55 }, // inventada
-          { name: 'Hacha de guerra', desc: '+20% de zona, de daño y de velocidad de ataque', cost: 110 },
+          { name: 'Hacha de guerra', desc: '+20% de zona, de daño y de velocidad de ataque', cost: 55 },
+          { name: 'Golpe contundente', desc: 'Empuja hacia atrás a UN zombi por golpe', cost: 110 }, // inventada
           { name: 'Cuerno Vikingo', desc: 'ACTIVA: +30% vel. ataque a todos y Bárbaros x2 daño 6 s (26 s)', cost: 190 },
         ],
       },
       C: {
         name: 'Cazador de jefes',
         tiers: [
-          { name: 'Golpe brutal', desc: 'Los críticos hacen x3 (en vez de x2)', cost: 35 }, // inventada
-          { name: 'Ojo letal', desc: '+20% prob. de crítico', cost: 55 },
+          { name: 'Ojo letal', desc: '+20% prob. de crítico', cost: 35 },
+          { name: 'Golpe brutal', desc: 'Los críticos hacen x3 (en vez de x2)', cost: 55 }, // inventada
           { name: 'Ataque múltiple', desc: 'Cada 4 ataques hace un ataque triple (tres golpes seguidos)', cost: 110 },
-          { name: 'Conquistador', desc: 'x5 de daño a jefes y minijefes', cost: 200 },
+          { name: 'Conquistador', desc: 'x4 de daño a jefes y minijefes', cost: 200 },
         ],
       },
     },
@@ -81,7 +81,7 @@ export const TOWERS = {
           { name: 'Ojo de águila', desc: '+20% de alcance', cost: 40 }, // inventada
           { name: 'Doble flecha', desc: 'Dispara +1 flecha', cost: 65 },
           { name: 'Ojo de halcón', desc: '+40% de alcance y +30% de probabilidad de crítico', doc: '+40% de alcance y +30% de probabilidad de crítico (x2 de daño)', cost: 115 },
-          { name: 'Lluvia de flechas', desc: 'ACTIVA: cae sobre todos los zombis (17 s)', cost: 200 },
+          { name: 'Lluvia de flechas', desc: 'ACTIVA: cae sobre todos los zombis y los Elfos disparan el doble de rápido 5 s (17 s)', cost: 200 },
         ],
       },
       C: {
@@ -164,7 +164,7 @@ export const TOWERS = {
     color: 0x2874a6,
     cost: 110,
     desc: 'Daño en área.',
-    skill: { name: 'Meteoritos', icon: '🌠', cooldown: 25 },
+    skill: { name: 'Orbe arcano', icon: '🔮', cooldown: 15 },
     paths: {
       A: {
         name: 'Arcanista',
@@ -179,8 +179,8 @@ export const TOWERS = {
           },
           {
             name: 'Supernova',
-            desc: 'Cada 5º hechizo: aura de luz con daño continuo',
-            doc: 'Cada 5º hechizo: El hechizo gana un aura de luz que hace daño continuo a los zombis que estén cerca',
+            desc: 'Cada 5º hechizo: aura de luz con daño continuo (x3 de daño)',
+            doc: 'Cada 5º hechizo: el hechizo gana un aura de luz que hace mucho daño continuo (el triple que antes) a los zombis cercanos',
             cost: 190,
           },
         ],
@@ -196,7 +196,12 @@ export const TOWERS = {
             cost: 90,
           },
           { name: 'Cadáveres ardientes', desc: 'Los que mueren ardiendo explotan', cost: 125 },
-          { name: 'Meteoritos', desc: 'ACTIVA: lluvia de meteoritos (25 s)', cost: 220 },
+          {
+            name: 'Orbe arcano',
+            desc: 'ACTIVA: carga 5 s un orbe que se divide en 3 y persigue a los 3 zombis con más vida (15 s)',
+            doc: 'ACTIVA: el Mago carga una bola de magia sobre su cabeza durante 5 s. Después se fragmenta en 3 orbes púrpura que, con trayectorias curvas, van hacia los 3 zombis con más vida. Cada orbe hace el daño de 5 hechizos del Mago. Recarga: 15 s.',
+            cost: 220,
+          },
         ],
       },
       C: {
@@ -260,6 +265,7 @@ const HIGH_IMPACT = {
   'Ataque fantasma': 2.0,
   'Aluvión': 1.6,
   'Meteoritos': 1.5,
+  'Orbe arcano': 1.5,
   'Lluvia de flechas': 1.5,
   'Apocalipsis': 1.5,
   'Moneda lanzada': 1.5,

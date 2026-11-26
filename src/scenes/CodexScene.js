@@ -3,9 +3,11 @@ import { W, H, FONT, EMOJI_FONT, COL } from '../config.js';
 import { TOWERS, TOWER_ORDER } from '../data/towers.js';
 import { towerUnlocked } from '../data/tree.js';
 import { TOWER_ART } from '../towerArt.js';
-import { load } from '../storage.js';
+import { load, reset, save } from '../storage.js';
 import { makeButton, title, woodPanel, infoIcon, hideTip } from '../ui.js';
 import { GLOSSARY, glossaryFor } from '../data/glossary.js';
+import { ENEMIES, enemyInfo } from '../data/enemies.js';
+import { LEVELS, ENEMY_ORDER, enemiesOfLevel, seenEnemies } from '../levelInfo.js';
 
 // Datos base y consejos de cada defensa (las cifras salen de GameScene.stats() / newTowers.js: actualizar si cambian)
 const INFO = {
@@ -28,8 +30,20 @@ export default class CodexScene extends Phaser.Scene {
     super('Codex');
   }
 
+  // modos: 'towers' (defensas + glosario), 'enemies' (todos los enemigos) o 'level' (los enemigos de un nivel)
   init(data) {
     this.idx = (data && data.index) || 0;
+    this.mode = (data && data.mode) || 'towers';
+    this.levelId = data && data.level;
+    this.backPage = (data && data.back) || 0;
+    this.msg = (data && data.msg) || '';
+  }
+
+  // lista de páginas según el modo
+  list() {
+    if (this.mode === 'towers') return [...TOWER_ORDER, '__glossary'];
+    if (this.mode === 'level') return enemiesOfLevel(LEVELS.find((l) => l.id === this.levelId));
+    return ENEMY_ORDER;
   }
 
   create() {
@@ -41,8 +55,19 @@ export default class CodexScene extends Phaser.Scene {
     this.add.rectangle(60, 84, W / 2 - 66, H - 124, 0xf1dfae).setOrigin(0, 0).setStrokeStyle(2, 0xb08d57).setDepth(3);
     this.add.rectangle(W / 2 + 6, 84, W / 2 - 66, H - 124, 0xf1dfae).setOrigin(0, 0).setStrokeStyle(2, 0xb08d57).setDepth(3);
     this.add.rectangle(W / 2 - 6, 84, 12, H - 124, 0xb08d57).setOrigin(0, 0).setDepth(4); // lomo
-    title(this, W / 2, 32, '📖 Códice de Evelmore', 34).setDepth(12);
-    makeButton(this, 14, 10, 130, 42, '← Menú', () => this.scene.start('Menu'), { fontSize: 18, depth: 12 });
+    {
+      const tt = title(this, W / 2 + 140, 32, this.mode === 'level' ? `Enemigos del nivel ${this.levelId}` : 'Códice de Evelmore', 32).setDepth(12);
+      const bk = this.add.image(tt.x - tt.width / 2 - 26, 32, 'ic_book').setDepth(12);
+      bk.setScale(40 / bk.width);
+    }
+    makeButton(this, 14, 10, 130, 42, '← Menú', () => this.scene.start('Menu', { page: this.backPage }), { fontSize: 18, depth: 12 });
+    // pestañas: defensas / enemigos
+    const tab = (x, label, mode) => {
+      const on = this.mode === mode || (mode === 'enemies' && this.mode === 'level');
+      makeButton(this, x, 10, 130, 42, label, () => this.scene.restart({ mode, index: 0, back: this.backPage }), { fontSize: 17, fill: on ? 0x2f6f4a : 0x5b4636, depth: 12 });
+    };
+    tab(156, 'Defensas', 'towers');
+    tab(296, 'Enemigos', 'enemies');
     makeButton(this, W - 214, 10, 200, 42, '⚔ Equipo', () => this.scene.start('Team'), { fontSize: 18, fill: 0x2f6f4a, depth: 12 });
     // pasar página: botones y flechas del teclado
     this.prev = makeButton(this, 8, H / 2 - 40, 44, 80, '◀', () => this.go(-1), { fontSize: 30, fill: 0x5b4636, depth: 12 });
@@ -50,13 +75,100 @@ export default class CodexScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-LEFT', () => this.go(-1));
     this.input.keyboard.on('keydown-RIGHT', () => this.go(1));
     this.page = [];
+    if (this.msg) {
+      const m = this.add.text(W / 2, 690, this.msg, { fontFamily: FONT, fontSize: '18px', color: '#a5d6a7', fontStyle: 'bold', stroke: '#1b1209', strokeThickness: 4 }).setOrigin(0.5).setDepth(30);
+      this.tweens.add({ targets: m, alpha: 0, delay: 2500, duration: 600 });
+    }
+    if (this.mode === 'towers') makeButton(this, 76, 598, 140, 44, 'SAVE', () => this.confirmSave(), { fontSize: 20, fill: 0x8a6d1a, depth: 12 });
     this.show();
   }
 
+  // Partida preparada: 2500 de oro, 5 cerebros y los niveles 1-5 superados con 1 estrella (se puede jugar el 6). Sustituye el progreso actual.
+  confirmSave() {
+    if (this.saveUi) return;
+    const objs = [];
+    this.saveUi = objs;
+    const add = (o) => (objs.push(o), o);
+    const close = () => {
+      objs.forEach((o) => o.destroy && o.destroy());
+      this.saveUi = null;
+    };
+    add(this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0).setDepth(100).setInteractive());
+    add(woodPanel(this, W / 2 - 300, 170, 600, 340, 101, 16));
+    add(title(this, W / 2, 215, 'Cargar partida SAVE', 32).setDepth(102));
+    add(
+      this.add
+        .text(W / 2, 322, 'Se cargará una partida con 2500 de oro, 5 cerebros y los niveles 1 a 5 superados con una estrella (podrás jugar el nivel 6).\n\nTu progreso actual se sustituirá.', { fontFamily: EMOJI_FONT, fontSize: '19px', color: COL.cream, align: 'center', lineSpacing: 5, stroke: '#2e1c0f', strokeThickness: 4, wordWrap: { width: 540 } })
+        .setOrigin(0.5)
+        .setDepth(102)
+    );
+    add(makeButton(this, W / 2 - 250, 420, 230, 60, 'Cancelar', close, { fontSize: 22, fill: 0x5b4636, depth: 103 }));
+    add(
+      makeButton(this, W / 2 + 20, 420, 230, 60, 'Cargar', () => {
+        const s = reset();
+        s.coins = 2500;
+        s.brains = 5;
+        s.cleared = {};
+        s.stars = {};
+        for (let id = 1; id <= 5; id++) {
+          s.cleared[id] = true;
+          s.stars[id] = 1;
+        }
+        save();
+        this.scene.restart({ mode: 'towers', index: this.idx, back: this.backPage, msg: 'Partida SAVE cargada: 2500 de oro y 5 cerebros' });
+      }, { fontSize: 24, fill: 0x2e7d32, depth: 103 })
+    );
+  }
+
   go(d) {
-    const n = TOWER_ORDER.length + 1; // las defensas + la página del glosario
+    const n = this.list().length;
     this.idx = (this.idx + d + n) % n;
     this.show();
+  }
+
+  // Página de un enemigo: a la izquierda su figura animada (silueta negra si aún no lo has visto); a la derecha su ficha
+  showEnemy(type, add) {
+    const def = ENEMIES[type];
+    const known = seenEnemies().has(type);
+    const ink = '#3b2412';
+    const lx = 60;
+    const lw = W / 2 - 66;
+    const n = this.list().length;
+    add(this.add.text(lx + lw / 2, 112, known ? def.name : '???', { fontFamily: FONT, fontSize: '30px', color: '#7b241c', fontStyle: 'bold', align: 'center', wordWrap: { width: lw - 40 } }).setOrigin(0.5).setDepth(5));
+    add(this.add.text(lx + lw / 2, 148, known ? def.desc : 'Aún no lo has encontrado en ninguna partida.', { fontFamily: EMOJI_FONT, fontSize: '16px', color: ink, fontStyle: 'italic', align: 'center', wordWrap: { width: lw - 50 } }).setOrigin(0.5, 0).setDepth(5));
+    add(this.add.ellipse(lx + lw / 2, 450, 220, 36, 0x000000, 0.18).setDepth(4));
+    // alto real de la figura dentro del fotograma y dónde están sus pies (orco/soldado: fotogramas de 100 px; hobgoblin: 16 px)
+    const FIG = { orc_walk: [15, 0.57], sol_walk: [21, 0.6], gob_run: [16, 0.97] }[def.art.key] || [20, 0.6];
+    const sc = (150 + Math.min(100, def.size)) / FIG[0];
+    const spr = add(this.add.sprite(lx + lw / 2, 450, def.art.key).setOrigin(0.5, FIG[1]).setScale(sc).setDepth(5));
+    spr.play(def.art.key);
+    if (known) spr.setTint(def.art.tint ?? 0xffffff);
+    else spr.setTint(0x000000).setTintMode(Phaser.TintModes.FILL); // silueta
+    const where = LEVELS.find((l) => enemiesOfLevel(l).includes(type));
+    add(this.add.text(lx + lw / 2, 560, `${this.mode === 'level' ? `Nivel ${this.levelId} · ` : ''}${this.idx + 1} / ${n}`, { fontFamily: FONT, fontSize: '16px', color: '#6d5a45' }).setOrigin(0.5).setDepth(5));
+    const rx = W / 2 + 26;
+    const rw = W / 2 - 106;
+    if (!known) {
+      add(this.add.text(rx, 110, 'Enemigo por descubrir', { fontFamily: FONT, fontSize: '22px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
+      add(this.add.text(rx, 150, `Su ficha se completará la primera vez que aparezca en una partida.${where ? `\n\nSale por primera vez en el nivel ${where.id} (${where.name.replace(/ · \d+/, '')}).` : ''}`, { fontFamily: EMOJI_FONT, fontSize: '17px', color: ink, wordWrap: { width: rw }, lineSpacing: 4 }).setDepth(5));
+      return;
+    }
+    const info = enemyInfo(def);
+    add(this.add.text(rx, 100, 'Ficha', { fontFamily: FONT, fontSize: '22px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
+    let y = 134;
+    for (const [k, v] of info.rows) {
+      add(this.add.text(rx, y, k, { fontFamily: FONT, fontSize: '17px', color: '#6d5a45', fontStyle: 'bold' }).setDepth(5));
+      add(this.add.text(rx + 190, y, v, { fontFamily: EMOJI_FONT, fontSize: '17px', color: ink }).setDepth(5));
+      y += 28;
+    }
+    if (info.traits.length) {
+      y += 10;
+      add(this.add.text(rx, y, 'Rasgos', { fontFamily: FONT, fontSize: '20px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
+      y += 30;
+      const t = add(this.add.text(rx, y, info.traits.map((s) => '• ' + s).join('\n'), { fontFamily: EMOJI_FONT, fontSize: '16px', color: ink, wordWrap: { width: rw }, lineSpacing: 4 }).setDepth(5));
+      y += t.height;
+    }
+    if (where) add(this.add.text(rx, Math.max(y + 16, 520), `Aparece desde el nivel ${where.id}`, { fontFamily: FONT, fontSize: '15px', color: '#6d5a45' }).setDepth(5));
   }
 
   // Última página del libro: glosario de combate (resistencias, dorados, control...)
@@ -88,7 +200,10 @@ export default class CodexScene extends Phaser.Scene {
       this.page.push(o);
       return o;
     };
-    if (this.idx >= TOWER_ORDER.length) return this.showGlossary(add);
+    const item = this.list()[this.idx];
+    if (!item) return;
+    if (this.mode !== 'towers') return this.showEnemy(item, add);
+    if (item === '__glossary') return this.showGlossary(add);
     const id = TOWER_ORDER[this.idx];
     const def = TOWERS[id];
     const art = TOWER_ART[id];
@@ -104,6 +219,7 @@ export default class CodexScene extends Phaser.Scene {
     add(this.add.ellipse(lx + lw / 2, 410, 220, 36, 0x000000, 0.18).setDepth(4));
     const spr = add(this.add.sprite(lx + lw / 2, 380, art.idle).setOrigin(0.5, 0.7).setScale(art.idle === 'lan_idle' ? art.scale * 2.2 : art.scale * 3).setDepth(5).setTint(art.tint ?? 0xffffff)); // el lancero tiene fotogramas más grandes
     spr.play(art.idle);
+    if (!open) spr.setTint(0x000000).setTintMode(Phaser.TintModes.FILL); // aún sin desbloquear: silueta
     // ataque de muestra al pulsarla
     spr.setInteractive({ useHandCursor: true });
     spr.on('pointerdown', () => {
@@ -133,7 +249,7 @@ export default class CodexScene extends Phaser.Scene {
       path.tiers.forEach((u, k) => {
         const t = add(this.add.text(x, y, `${k + 1}. ${u.name}  🛠${u.cost}\n${u.desc}`, { fontFamily: EMOJI_FONT, fontSize: '11px', color: ink, lineSpacing: 1, wordWrap: { width: colW - 4 } }).setDepth(5));
         const gl = glossaryFor(`${u.name} ${u.desc}`);
-        if (gl.length) infoIcon(this, x + colW - 14, y + 7, gl, 6).forEach((o) => add(o)); // "i": aclara términos de la mejora
+        if (gl.length) infoIcon(this, x + colW - 12, y + t.height - 7, gl, 6).forEach((o) => add(o)); // "i": aclara términos de la mejora
         y += t.height + 6;
       });
     });

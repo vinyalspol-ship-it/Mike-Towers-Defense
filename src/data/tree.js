@@ -72,6 +72,7 @@ const BEND = 9; // grados que se curva cada nivel hacia dentro (evita que se sol
 const TIER_COST = [8, 20, 45, 80];
 const TIER1_COST = { barbaro: 6, elfo: 8, alquimista: 8, mago: 10, lancero: 10, monje: 12, ingeniero: 9, asedio: 13, midas: 16, nigromante: 15, druida: 12 }; // nivel 1
 const COST_MULT = { barbaro: 1, elfo: 1.2, alquimista: 1.4, mago: 1.6, lancero: 1.5, monje: 1.6, ingeniero: 1.4, asedio: 1.8, midas: 2.0, nigromante: 2.0, druida: 1.7 };
+const BASIC4 = ['barbaro', 'elfo', 'alquimista', 'mago'];
 const RULE = { 3: ' (en partida, solo 2 de los 3 caminos llegan al nivel 3)', 4: ' (en partida, solo UNO de los 3 caminos llega al nivel 4)' };
 
 // Posiciones de los 12 nodos de una defensa: pos[pi][n]
@@ -161,7 +162,8 @@ for (const id of TOWER_ORDER) {
       add(`${t.short}_${P}${n + 1}`, {
         name: upg.name,
         desc: `${t.name} · camino ${P} (${path.name}) · nivel ${n + 1}: ${upg.name}. ${upg.desc}.`,
-        cost: n === 0 ? TIER1_COST[id] : Math.round(TIER_COST[n] * COST_MULT[id]),
+        // las defensas que no son las 4 básicas cuestan un 350% más de oro en sus mejoras permanentes (x4,5)
+        cost: Math.round((n === 0 ? TIER1_COST[id] : TIER_COST[n] * COST_MULT[id]) * (BASIC4.includes(id) ? 1 : 4.5)),
         icon: String(n + 1),
         img: iconKeyFor(upg.name, upg.desc), // icono de la mejora
         kind: n === 3 ? 'big' : 'path',
@@ -210,14 +212,15 @@ function bestChainAngle(n, r0, step) {
 }
 const CHAIN = [
   ['auto_skills', 'Lanzamiento automático', 'Cuesta 100 monedas. Aparece un botón AUTO en la partida: las habilidades activas se lanzan solas en cuanto están listas y hay zombis en el mapa.', 100, '⚡', 0xaf7ac5, 'coins'],
-  ...[1, 2, 3].map((cost, i) => [
+  // espacio 4: 1 cerebro · espacio 5: 1000 de oro · espacio 6: 2 cerebros
+  ...[[1, 'brains'], [1000, 'coins'], [2, 'brains']].map(([cost, cur], i) => [
     'slot_' + (i + 4),
     `Equipo: espacio ${i + 4}`,
-    `Cuesta ${cost} cerebro${cost > 1 ? 's' : ''}. Podrás llevar ${i + 4} defensas distintas a cada batalla (se eligen en Equipo, en el menú principal).`,
+    `Cuesta ${cost} ${cur === 'brains' ? (cost > 1 ? 'cerebros' : 'cerebro') : 'monedas'}. Podrás llevar ${i + 4} defensas distintas a cada batalla (se eligen en Equipo, en el menú principal).`,
     cost,
     '🎒',
     0x80cbc4,
-    'brains',
+    cur,
   ]),
 ];
 const CHAIN_ANGLE = bestChainAngle(CHAIN.length, 140, 150);

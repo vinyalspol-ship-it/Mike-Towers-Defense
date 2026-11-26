@@ -285,7 +285,8 @@ export default class TreeScene extends Phaser.Scene {
     const nd = NODES[id];
     const owned = has(this.sv, id);
     const why = owned ? null : whyNot(this.sv, id);
-    this.info.setText(`${nd.name}: ${nd.desc}${owned ? '\n✅ Ya comprado' : why && !why.includes('🧠') ? '\n⚠ ' + why : ''}`);
+    const inGame = nd.tower && nd.path && nd.tier ? TOWERS[nd.tower].paths[nd.path].tiers[nd.tier - 1].cost : null;
+    this.info.setText(`${nd.name}: ${nd.desc}${inGame !== null ? `\nCoste en partida: ${inGame} suministros` : ''}${owned ? '\n✅ Ya comprado' : why && !why.includes('🧠') ? '\n⚠ ' + why : ''}`);
     (this.infoObjs || []).forEach((o) => o.destroy());
     hideTip();
     const gl = glossaryFor(nd.name + ' ' + nd.desc);

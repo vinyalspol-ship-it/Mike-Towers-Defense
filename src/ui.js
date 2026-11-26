@@ -31,6 +31,15 @@ export function makeButton(scene, x, y, w, h, text, onClick, opts = {}) {
     })
     .setOrigin(0.5)
     .setDepth(depth + 1);
+  // icono pequeño a la izquierda del texto (p. ej. el libro del Códice)
+  if (opts.leftIcon) {
+    const s = opts.leftIconSize ?? Math.round(h * 0.6);
+    icon = scene.add.image(0, y + h / 2, opts.leftIcon).setDepth(depth + 1);
+    icon.setScale(s / icon.width);
+    const total = s + 8 + label.width;
+    icon.x = x + w / 2 - total / 2 + s / 2;
+    label.x = x + w / 2 - total / 2 + s + 8 + label.width / 2;
+  }
 
   const btn = {
     bg,

@@ -5,7 +5,7 @@ export const ICON_IDS = {
   damage: 727, power: 657, speed: 688, boot: 658, range: 1100, area: 767, crit: 1005, ice: 1014, fire: 997, poison: 810,
   lightning: 1025, arcane: 737, gold: 131, bag: 160, luck: 668, life: 659, shield: 664, summon: 1073, skull: 674, holy: 670,
   star: 683, trap: 127, nature: 966, beast: 1072, swarm: 1070, bomb: 764, pierce: 156, target: 684, ghost: 672, meteor: 759,
-  arrows: 2155, potion: 280, crossed: 721, apoc: 863, ingot: 150,
+  arrows: 2155, potion: 280, crossed: 721, apoc: 863, ingot: 150, book: 101,
 };
 
 // habilidades activas (nivel 4 del camino B de cada defensa)
@@ -14,6 +14,7 @@ const SKILL_ICON = {
   'Lluvia de flechas': 'arrows',
   'Pócima dorada': 'potion',
   Meteoritos: 'meteor',
+  'Orbe arcano': 'arcane',
   'Ataque fantasma': 'ghost',
   'Juicio divino': 'holy',
   Sobrecarga: 'lightning',

@@ -5,6 +5,8 @@ import { W, MAP_Y, PANEL_Y } from './config.js';
 import { playFx } from './art.js';
 
 const D = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
+// posición de las torretas de ballesta respecto al Ingeniero
+const TURRET_POS = [[-50, 12], [50, 12], [0, -58], [0, 50]]; // separadas del Ingeniero para no solaparse con su figura
 export const NEW_TYPES = ['lancero', 'monje', 'ingeniero', 'asedio', 'midas', 'nigromante', 'druida'];
 
 export const NewTowers = {
@@ -49,15 +51,15 @@ export const NewTowers = {
         o.dmg = 6;
         o.interval = 1.3;
         o.range = 140;
-        o.traps = A >= 1 ? (A >= 3 ? 6 : 3) : 0;
-        o.mines = A >= 2;
+        o.traps = A >= 1 ? (A >= 3 ? 6 : 3) : 0; // cepos (aturden 5 s)
+        o.mines = A >= 2 ? 3 : 0; // Minas: 3 minas que se reponen 6 s después de explotar
         o.rearm = A >= 3;
         o.cross = A >= 4;
-        o.turrets = B >= 1 ? (B >= 2 ? 2 : 1) : 0;
-        o.adjust = B >= 3;
-        o.scrap = C >= 1;
-        o.gear = C >= 2;
-        o.mover = C >= 3;
+        o.turrets = 1 + (B >= 1 ? 1 : 0) + (B >= 2 ? 2 : 0); // empieza con 1 torreta; nivel 1: +1; Batería de torretas: +2 (4)
+        o.turretFx = B >= 3; // Torretas especiales
+        o.mover = C >= 1; // Taller móvil
+        o.gear = C >= 2; // Engranaje
+        o.scrap = C >= 3; // Chatarrero
         o.golem = C >= 4;
         break;
       case 'asedio':
@@ -246,17 +248,7 @@ export const NewTowers = {
         }
       }
       if (m.type === 'ingeniero' && m.ups.C >= 2) {
-        let near = null;
-        let bd = 320;
-        for (const o of this.towers) {
-          if (o === m) continue;
-          const d = D(m.x, m.y, o.x, o.y);
-          if (d < bd) {
-            bd = d;
-            near = o;
-          }
-        }
-        if (near) near.rangeMul = Math.max(near.rangeMul, 1.1);
+        for (const o of this.towers) if (D(m.x, m.y, o.x, o.y) <= 200) o.rangeMul = Math.max(o.rangeMul, 1.15);
       }
       if (m.type === 'midas' && m.ups.C >= 3) {
         let spent = 0;
@@ -610,7 +602,7 @@ export const NewTowers = {
       col = 0xdce775;
       if (Math.random() < (s.weak ? 0.5 : 0)) {
         d *= 2;
-        this.floatText(tg.x, tg.y - 26, '¡Crítico!', '#ffee58');
+        this.critText(tg);
       }
     }
     const shots = mini ? 4 : 1; // Foco arcano: +3 proyectiles contra el minijefe
@@ -674,22 +666,28 @@ export const NewTowers = {
   },
 
   // ------------------------------------------------------------------ INGENIERO: trampas, torretas y golem
+  // punto al azar del camino cerca del Ingeniero (para cepos y minas)
+  ntTrapSpot(t) {
+    for (let i = 0; i < 25; i++) {
+      const ri = Math.floor(Math.random() * this.routes.length);
+      const d = Math.random() * this.routes[ri].len;
+      const p = this.posAt(d, 0, ri);
+      if (D(t.x, t.y, p.x, p.y) <= 190) return p;
+    }
+    return null;
+  },
+
   ntEngineer(t, s, dt) {
     const k = this.buffs.overload > 0 ? 3 : 1;
-    // trampas
+    // cepos: aturden 5 s
     if (s.traps) {
       t.trapList = t.trapList || [];
       t.trapT = (t.trapT || 0) - dt;
       if (t.trapList.length < s.traps && t.trapT <= 0) {
-        for (let i = 0; i < 25; i++) {
-          const ri = Math.floor(Math.random() * this.routes.length);
-          const d = Math.random() * this.routes[ri].len;
-          const p = this.posAt(d, 0, ri);
-          if (D(t.x, t.y, p.x, p.y) <= 190) {
-            t.trapList.push({ x: p.x, y: p.y, mine: s.mines && Math.random() < 0.4, armed: true, rearm: 0 });
-            t.trapT = 10;
-            break;
-          }
+        const p = this.ntTrapSpot(t);
+        if (p) {
+          t.trapList.push({ x: p.x, y: p.y, armed: true, rearm: 0 });
+          t.trapT = 10;
         }
       }
       for (const tr of t.trapList) {
@@ -703,44 +701,88 @@ export const NewTowers = {
         tr.armed = false;
         tr.rearm = 10;
         tr.used = true;
-        if (tr.mine) {
-          this.ntSplash(tr.x, tr.y, 62, 45 * k * this.tierBoost(t), { src: t, color: 0xff7043 });
-          if (s.cross) {
-            [[55, 0], [-55, 0], [0, 55], [0, -55]].forEach(([ox, oy], i) => {
-              this.timers.push({ t: 0.12 + i * 0.04, fn: () => this.ntSplash(tr.x + ox, tr.y + oy, 40, 45 * k * 1.5 * this.tierBoost(t), { src: t, color: 0xffab40 }) });
-            });
-          }
-        } else {
-          this.ntImmobilize(e, 2, 1);
-          this.addRing(tr.x, tr.y, 26, 0xbdbdbd, 0.4);
-        }
+        this.ntImmobilize(e, 5, 1);
+        this.addRing(tr.x, tr.y, 26, 0xbdbdbd, 0.4);
       }
       if (!s.rearm) t.trapList = t.trapList.filter((tr) => !tr.used);
     }
-    // torretas aliadas
+    // minas: 3 en el camino; la que explota se vuelve a colocar 6 s después
+    if (s.mines) {
+      t.mineList = t.mineList || [];
+      while (t.mineList.length < s.mines) {
+        const p = this.ntTrapSpot(t);
+        if (!p) break;
+        t.mineList.push({ x: p.x, y: p.y, armed: true, rearm: 0 });
+      }
+      for (const m of t.mineList) {
+        if (!m.armed) {
+          m.rearm -= dt;
+          if (m.rearm <= 0) {
+            const p = this.ntTrapSpot(t);
+            if (p) {
+              m.x = p.x;
+              m.y = p.y;
+              m.armed = true;
+            }
+          }
+          continue;
+        }
+        if (!this.enemies.some((z) => !z.dead && D(z.x, z.y, m.x, m.y) < 24)) continue;
+        m.armed = false;
+        m.rearm = 6;
+        this.ntSplash(m.x, m.y, 62, 45 * k * this.tierBoost(t), { src: t, color: 0xff7043 });
+        if (s.cross) {
+          [[55, 0], [-55, 0], [0, 55], [0, -55]].forEach(([ox, oy], i) => {
+            this.timers.push({ t: 0.12 + i * 0.04, fn: () => this.ntSplash(m.x + ox, m.y + oy, 40, 45 * k * 1.5 * this.tierBoost(t), { src: t, color: 0xffab40 }) });
+          });
+        }
+      }
+    }
+    // torretas de ballesta (con Torretas especiales: 1 triple, 2 lanza-cepos, 3 fuego, 4 marca)
     if (s.turrets) {
-      t.turretCd = t.turretCd || [0, 0];
-      const dmg = 9 * this.tierBoost(t) * (1 + (s.adjust ? Math.min(1, 0.1 * Math.floor((t.turretKills || 0) / 20)) : 0)) * (t.auraDmg || 1) * k;
+      t.turretCd = t.turretCd || [0, 0, 0, 0];
+      t.turretAng = t.turretAng || [0, Math.PI, -Math.PI / 2, Math.PI / 2];
+      const dmg = 9 * this.tierBoost(t) * (t.auraDmg || 1) * k;
       for (let i = 0; i < s.turrets; i++) {
         t.turretCd[i] -= dt;
         if (t.turretCd[i] > 0) continue;
-        const tx = t.x + (i ? 28 : -28);
-        const ty = t.y + 14;
+        const [ox, oy] = TURRET_POS[i];
+        const tx = t.x + ox;
+        const ty = t.y + oy;
         const list = this.enemies.filter((e) => !e.dead && D(tx, ty, e.x, e.y) <= 215).sort(this.prioCmp(t));
         if (!list.length) continue;
         const e = list[Math.min(i, list.length - 1)];
-        t.turretCd[i] = 1.1 / k;
-        this.effects.push({ kind: 'bolt', x: tx, y: ty - 8, x2: e.x, y2: e.y, life: 0.15, max: 0.15, color: 0xffcc80 });
-        this.damage(e, dmg, { src: t, turret: true });
+        t.turretAng[i] = Math.atan2(e.y - ty, e.x - tx);
+        let cdv = 1.1;
+        const shoot = (en, d, color) => {
+          this.effects.push({ kind: 'bolt', x: tx, y: ty - 8, x2: en.x, y2: en.y, life: 0.15, max: 0.15, color });
+          this.damage(en, d, { src: t, turret: true });
+        };
+        if (s.turretFx && i === 0) {
+          for (let j = 0; j < 3; j++) shoot(list[j % list.length], dmg * 0.8, 0xffe082); // triple disparo
+        } else if (s.turretFx && i === 1) {
+          cdv = 3; // más lenta: lanza un cepo que aturde 5 s
+          shoot(e, dmg, 0xb0bec5);
+          this.ntImmobilize(e, 5, 1);
+        } else if (s.turretFx && i === 2) {
+          shoot(e, dmg, 0xff7043); // disparo quemador
+          e.burnUntil = this.now + 4;
+          e.burnDps = Math.max(e.burnDps || 0, 8 * this.tierBoost(t));
+          e.burnSrc = t;
+        } else if (s.turretFx && i === 3) {
+          shoot(e, dmg, 0xce93d8); // marca: x1,5 de daño de todas las defensas
+          this.ntMark(e, 4, 1.5);
+        } else shoot(e, dmg, 0xffcc80);
+        t.turretCd[i] = cdv / k;
       }
     }
     // golem de chatarra
     if (s.golem) {
       t.golemT = (t.golemT ?? 22) - dt;
       if (t.golemT <= 0 && this.waveRunning) {
-        t.golemT = 25;
+        t.golemT = 40;
         const ri = Math.floor(Math.random() * this.routes.length);
-        this.allies.push({ kind: 'golem', owner: t, route: ri, dist: 0, life: 15, cd: 0, chains: [], x: 0, y: 0, txt: this.ntGolemSprite(0xffffff, 1.1) });
+        this.allies.push({ kind: 'golem', owner: t, route: ri, dist: 0, life: 30, cd: 0, chains: [], x: 0, y: 0, txt: this.ntGolemSprite(0xffffff, 1.1) }); // dura el doble (30 s)
         this.floatText(t.x, t.y - 44, '🤖 Autómata', '#bdbdbd');
       }
     }
@@ -753,10 +795,24 @@ export const NewTowers = {
       a.life -= dt;
       if (a.kind === 'golem') {
         const o = a.owner;
-        a.dist += 40 * dt;
+        let tg = null;
+        let bdg = 1e9;
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          const d = D(a.x, a.y, e.x, e.y);
+          if (d < bdg) {
+            bdg = d;
+            tg = e;
+          }
+        }
+        if (tg) {
+          if (tg.route !== a.route && this.routes[tg.route]) a.route = tg.route; // cambia de ramal si el zombi va por otro
+          const dd = tg.dist - a.dist;
+          if (Math.abs(dd) > 30) a.dist += Math.sign(dd) * Math.min(Math.abs(dd) - 30, 60 * dt);
+        }
         const R = this.routes[a.route];
-        if (a.dist >= R.len) a.life = 0;
-        const p = this.posAt(Math.min(a.dist, R.len), 0, a.route);
+        a.dist = Math.max(0, Math.min(R.len, a.dist));
+        const p = this.posAt(a.dist, 0, a.route);
         if (Math.abs(p.x - a.x) > 0.01 && a.txt) a.txt.setFlipX(p.x < a.x);
         a.x = p.x;
         a.y = p.y;
@@ -1097,9 +1153,9 @@ export const NewTowers = {
           this.floatText(t.x, t.y - 44, '+8 🛠 diezmo', '#fff59d');
         }
       }
-      if (t.type === 'ingeniero' && s.scrap && d <= s.range && Math.random() < 0.1) {
-        this.supplies += 2;
-        this.floatText(e.x, e.y - 20, '+2 ⚙', '#bdbdbd');
+      if (t.type === 'ingeniero' && s.scrap && d <= s.range) {
+        this.supplies += 4;
+        this.floatText(e.x, e.y - 20, '+4 ⚙', '#bdbdbd');
       }
       if (t.type === 'midas' && s.collect && d <= s.range) {
         t.vault = (t.vault || 0) + 1; // Recaudador: 1 suministro por baja, en su inventario (se recauda con el botón de su panel)
@@ -1147,7 +1203,7 @@ export const NewTowers = {
   ntOnWaveStart() {
     this.leakedWave = false;
     for (const t of this.towers) {
-      if (t.type === 'ingeniero') t.moveCharges = t.ups.C >= 3 ? 1 : 0;
+      if (t.type === 'ingeniero') t.moveCharges = t.ups.C >= 1 ? 1 : 0; // Taller móvil: una vez por oleada
       if (t.type === 'lancero') t.combo = 0;
     }
   },
@@ -1179,10 +1235,69 @@ export const NewTowers = {
 
   // Mover una defensa gratis (Taller móvil del Ingeniero)
   movableBy(t) {
-    return this.towers.find((m) => m !== t && m.type === 'ingeniero' && m.ups.C >= 3 && (m.moveCharges || 0) > 0);
+    return this.towers.find((m) => m !== t && m.type === 'ingeniero' && m.ups.C >= 1 && (m.moveCharges || 0) > 0);
   },
 
   // ------------------------------------------------------------------ DIBUJADO
+  // Torreta de ballesta: trípode, cuerpo de madera que gira hacia el objetivo, arco con cuerda y virote con punta de metal
+  ntBallista(g, x, y, ang, fxColor) {
+    const S = 1.35; // tamaño
+    g.fillStyle(0x000000, 0.25);
+    g.fillEllipse(x, y + 13 * S, 26 * S, 7 * S);
+    g.lineStyle(3.5, 0x3e2723, 1); // trípode
+    g.lineBetween(x, y + 1, x - 10 * S, y + 13 * S);
+    g.lineBetween(x, y + 1, x + 10 * S, y + 13 * S);
+    g.lineBetween(x, y + 1, x, y + 14 * S);
+    g.fillStyle(0x5d4037, 1);
+    g.fillCircle(x, y, 5 * S);
+    const c = Math.cos(ang), s = Math.sin(ang);
+    const P = (lx, ly) => ({ x: x + (c * lx - s * ly) * S, y: y - 4 * S + (s * lx + c * ly) * S });
+    const poly = (pts, fill, line) => {
+      g.fillStyle(fill, 1);
+      g.lineStyle(2, line, 1);
+      g.beginPath();
+      g.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+      g.closePath();
+      g.fillPath();
+      g.strokePath();
+    };
+    poly([P(-13, -3), P(11, -3), P(11, 3), P(-13, 3)], 0x8d6e63, 0x3e2723); // cuerpo
+    // arco (dos brazos curvos) y cuerda
+    const arm = [P(9, 0), P(11, -6), P(9, -12), P(5, -16)];
+    const arm2 = [P(9, 0), P(11, 6), P(9, 12), P(5, 16)];
+    for (const A of [arm, arm2]) {
+      g.lineStyle(4, 0x4e342e, 1);
+      g.beginPath();
+      g.moveTo(A[0].x, A[0].y);
+      for (let i = 1; i < A.length; i++) g.lineTo(A[i].x, A[i].y);
+      g.strokePath();
+      g.lineStyle(1.5, 0xbcaaa4, 1);
+      g.beginPath();
+      g.moveTo(A[0].x, A[0].y);
+      for (let i = 1; i < A.length; i++) g.lineTo(A[i].x, A[i].y);
+      g.strokePath();
+    }
+    const n = P(-5, 0);
+    g.lineStyle(1.5, 0xf5f5f5, 1);
+    g.lineBetween(arm[3].x, arm[3].y, n.x, n.y);
+    g.lineBetween(arm2[3].x, arm2[3].y, n.x, n.y);
+    // virote cargado y punta de metal
+    const b0 = P(-7, 0), b1 = P(15, 0);
+    g.lineStyle(2.5, 0x3e2723, 1);
+    g.lineBetween(b0.x, b0.y, b1.x, b1.y);
+    poly([P(21, 0), P(15, -3.5), P(15, 3.5)], 0xcfd8dc, 0x455a64);
+    g.fillStyle(0x9e9e9e, 1); // remaches
+    for (const q of [P(-9, 0), P(3, 0)]) g.fillCircle(q.x, q.y, 1.6);
+    if (fxColor) {
+      const f = P(-13, 0);
+      g.fillStyle(fxColor, 1); // gema del efecto especial
+      g.fillCircle(f.x, f.y, 3.5);
+      g.lineStyle(1, 0x000000, 0.6);
+      g.strokeCircle(f.x, f.y, 3.5);
+    }
+  },
+
   ntDraw(a, b) {
     // zombis marcados / malditos
     for (const e of this.enemies) {
@@ -1209,19 +1324,28 @@ export const NewTowers = {
       // trampas y torretas del Ingeniero
       if (t.type === 'ingeniero') {
         for (const tr of t.trapList || []) {
-          a.fillStyle(tr.mine ? 0xe53935 : 0x9e9e9e, tr.armed ? 1 : 0.3);
-          a.fillCircle(tr.x, tr.y, tr.mine ? 8 : 7);
-          a.lineStyle(2, 0x212121, tr.armed ? 1 : 0.3);
-          a.strokeCircle(tr.x, tr.y, tr.mine ? 8 : 7);
+          // cepo: dientes de metal
+          const al = tr.armed ? 1 : 0.3;
+          a.fillStyle(0x9e9e9e, al);
+          a.fillCircle(tr.x, tr.y, 8);
+          a.lineStyle(2, 0x424242, al);
+          a.strokeCircle(tr.x, tr.y, 8);
+          a.lineBetween(tr.x - 7, tr.y, tr.x + 7, tr.y);
         }
-        const nt = this.stats(t).turrets;
-        for (let i = 0; i < nt; i++) {
-          const x = t.x + (i ? 28 : -28);
-          const y = t.y + 14;
-          a.fillStyle(0x6d4c41, 1);
-          a.fillRect(x - 8, y - 8, 16, 14);
-          a.lineStyle(3, 0x3e2723, 1);
-          a.lineBetween(x, y - 4, x + 10, y - 10);
+        for (const m of t.mineList || []) {
+          if (!m.armed) continue;
+          a.fillStyle(0x37474f, 1);
+          a.fillCircle(m.x, m.y, 8);
+          a.fillStyle(0xe53935, 0.6 + 0.4 * Math.sin(this.now * 8));
+          a.fillCircle(m.x, m.y - 1, 3);
+          a.lineStyle(2, 0x212121, 1);
+          a.strokeCircle(m.x, m.y, 8);
+        }
+        const st = this.stats(t);
+        const FXC = [0xffd54f, 0x90a4ae, 0xff7043, 0xce93d8];
+        for (let i = 0; i < st.turrets; i++) {
+          const [ox, oy] = TURRET_POS[i];
+          this.ntBallista(a, t.x + ox, t.y + oy, (t.turretAng || [])[i] ?? 0, st.turretFx ? FXC[i] : null);
         }
       }
       // arbustos del Bosquecillo
