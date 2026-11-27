@@ -284,7 +284,7 @@ export function enemyInfo(def) {
   const props = propsOf(def);
   if (props.length) traits.push('Propiedades: ' + props.join(', '));
   if (def.flying) traits.push('Volador: solo le hacen daño los héroes antiaéreos');
-  if (def.heavy) traits.push('Pesado: solo se le puede empujar 3 veces');
+  if (def.heavy) traits.push('Pesado (desde el nivel 7): solo se le puede empujar 3 veces');
   if (def.master) traits.push('Maestro: el doble de vida y de resistencias');
   if (def.sprint) traits.push(`Sprint inicial de ${def.sprintTime} s y luego se cansa`);
   if (def.aura) traits.push('Aura: acelera a los zombis cercanos un 25%');

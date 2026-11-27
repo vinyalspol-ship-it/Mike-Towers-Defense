@@ -287,9 +287,15 @@ export function waveGroups(level, w) {
     for (let i = 0; i < 5; i++) {
       const type = pool[Math.min(pool.length - 1, Math.floor((i * pool.length) / 5) + (i >= 3 ? 1 : 0))] || 'normal';
       // 8-10 por grupo como mínimo; en los niveles con más zombis los grupos crecen en proporción
-      const size = (8 + Math.min(2, i * 0.5)) * Math.max(1, (level.countMul || 1) * (1 + 0.05 * k));
-      g.push({ type, n: Math.round(size), abreast: 3, gap: 0.6, hpMul: 1.15 + 0.2 * i, massive: true });
-      if (i === 2 || i === 4) g.push({ type: i === 4 && level.id >= 5 ? 'buitre' : 'cuervo', n: Math.round((4 + i) * Math.max(1, level.countMul || 1)), abreast: 2, gap: 0.6, hpMul: 1 + 0.15 * i, massive: true });
+      const half = level.id >= 2 && level.id <= 7 ? 0.5 : 1; // niveles 2 a 7: la mitad de zombis
+      const size = Math.max(4, Math.round((8 + Math.min(2, i * 0.5)) * Math.max(1, (level.countMul || 1) * (1 + 0.05 * k)) * half));
+      if (i === 4) {
+        // el último grupo (el más fuerte) se divide en dos: el segundo llega 10 s más tarde
+        const a = Math.ceil(size / 2);
+        g.push({ type, n: a, abreast: 3, gap: 0.6, hpMul: 1.15 + 0.2 * i, massive: true });
+        g.push({ type, n: size - a, abreast: 3, gap: 0.6, hpMul: 1.15 + 0.2 * i, massive: true, delay: 10 });
+      } else g.push({ type, n: size, abreast: 3, gap: 0.6, hpMul: 1.15 + 0.2 * i, massive: true });
+      if (i === 2 || i === 4) g.push({ type: i === 4 && level.id >= 5 ? 'buitre' : 'cuervo', n: Math.max(2, Math.round((4 + i) * Math.max(1, level.countMul || 1) * (level.id >= 2 && level.id <= 7 ? 0.5 : 1))), abreast: 2, gap: 0.6, hpMul: 1 + 0.15 * i, massive: true });
     }
     return g;
   }

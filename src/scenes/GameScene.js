@@ -1124,7 +1124,7 @@ export default class GameScene extends Phaser.Scene {
         // Hacha de guerra (B2): +20% de zona, daño y velocidad · Golpe contundente (B3): empuja
         o.dmg = 16 * (B >= 1 ? 1.25 : 1) * (B >= 2 ? 1.2 : 1);
         o.interval = 1.0 / (A >= 1 ? 1.3 : 1) / (B >= 2 ? 1.2 : 1) / (1 + 0.1 * t.blood);
-        o.range = 95 * (A >= 2 ? 1.15 : 1) * (B >= 2 ? 1.2 : 1);
+        o.range = 95 * (A >= 2 ? 1.25 : 1) * (B >= 2 ? 1.2 : 1);
         o.crit = 0.05 + (C >= 1 ? 0.2 : 0); // Ojo letal (C1)
         o.critMult = C >= 2 ? 3 : 2; // Golpe brutal (C2)
         o.spin = A >= 3;
@@ -1153,19 +1153,19 @@ export default class GameScene extends Phaser.Scene {
         o.interval = 2.4 / (A >= 3 ? 1.3 : 1);
         o.range = 161 * (C >= 1 ? 1.2 : 1); // 70% del alcance anterior (230)
         o.zoneR = 40 * (A >= 1 ? 1.3 : 1);
-        o.zoneLife = 3 + (A >= 2 ? 2 : 0);
+        o.zoneLife = 3 + (A >= 2 ? 3 : 0);
         o.potions = B >= 3 ? 2 : 1;
         o.goldCharge = B >= 2; // Viscosidad: cada 3ª poción vuelve dorados a los zombis
         o.corrode = C >= 2;
         o.poison = C >= 3;
-        o.poisonDps = 6;
-        o.epidemic = C >= 4;
+        o.poisonDps = 6 * (C >= 4 ? 5 : 1); // Ácido sulfúrico: el veneno hace x5
+        o.epidemic = false;
         o.impact = A >= 4;
         break;
       case 'mago':
         o.dmg = 18 * (B >= 1 ? 1.25 : 1); // antes 22
         o.interval = 1.6 / (A >= 2 ? 1.2 : 1);
-        o.range = 115 * (C >= 2 ? 1.2 : 1); // 50% del alcance anterior (230)
+        o.range = 115 * (C >= 2 ? 1.3 : 1); // Largo alcance: +30%
         o.blast = 50 * (A >= 1 ? 1.25 : 1);
         o.twin = C >= 3; // Orbe doble: segundo orbe gélido tras disparar
         o.echo = A >= 3; // Eco arcano: fragmentos con penetración infinita
@@ -1292,7 +1292,7 @@ export default class GameScene extends Phaser.Scene {
       case 'mago':
         // Orbe arcano: carga 5 s una bola de magia sobre su cabeza; luego se divide en 3 orbes que buscan a los 3 zombis con más vida
         if (!live.length) return;
-        this.projectiles.push({ kind: 'arcCharge', x: t.x, y: t.y - 58, t: 0, dur: 5, src: t, dmg: s.dmg * 5 });
+        this.projectiles.push({ kind: 'arcCharge', x: t.x, y: t.y - 58, t: 0, dur: 5, src: t, dmg: s.dmg * 15 }); // el triple que antes
         break;
       default:
         if (!this.ntSkill(t, s, live)) return;
@@ -1329,6 +1329,7 @@ export default class GameScene extends Phaser.Scene {
         const lanes = this.lanesFor(k);
         // con bifurcaciones, cada tanda elige uno de los recorridos (reparto al azar y equilibrado)
         const route = nr > 1 ? Math.floor(Math.random() * nr) : 0;
+        if (i === 0 && g.delay) t += g.delay; // el último grupo de la oleada masiva se divide: la 2ª mitad llega 10 s más tarde
         for (let j = 0; j < k; j++) this.queue.push({ at: t + j * 0.05, type: g.type, lane: ENEMIES[g.type].boss ? 0 : lanes[j], route, hpMul: g.hpMul || 1 });
         i += k;
         t += g.gap * (1 + 0.25 * (k - 1)) * fast;
@@ -1400,7 +1401,7 @@ export default class GameScene extends Phaser.Scene {
     };
     this.applyResists(e, k);
     // Pesado: a partir del nivel 5 es muy común (solo se le puede empujar 3 veces)
-    e.heavy = !!def.heavy || (!def.flying && this.levelId >= 5 && !this.level.tutorial && Math.random() < 0.35);
+    e.heavy = this.levelId >= 7 && !this.level.tutorial && (!!def.heavy || (!def.flying && Math.random() < 0.35)); // los pesados solo salen desde el nivel 7
     const art = def.art;
     e.flyY = def.flying ? -30 : 0; // los voladores se dibujan por encima de su sombra
     e.shadow = this.add.image(p.x, p.y + 14, 'shadow').setScale(art.shadow).setAlpha(def.flying ? 0.35 : 0.5).setDepth(10);
@@ -1445,7 +1446,8 @@ export default class GameScene extends Phaser.Scene {
       // los zombis con resistencia ganan un extra en el modo infernal
       if (this.infernal) for (const t of Object.keys(r)) if (t !== 'normal' && r[t] > 0) r[t] += 0.1;
     }
-    for (const t of Object.keys(r)) r[t] = Math.min(0.85, r[t]);
+    const cap = this.levelId >= 2 && this.levelId <= 5 ? 0.3 : 0.85; // niveles 2 a 5: como mucho un 30% de resistencia
+    for (const t of Object.keys(r)) r[t] = Math.min(cap, r[t]);
     e.res = r;
   }
 
@@ -1806,7 +1808,7 @@ export default class GameScene extends Phaser.Scene {
         const inR = this.targetsIn(t, st.range);
         if (inR.length) {
           t.zapT = 0;
-          this.lightning(t, inR[0], st.dmg * 2.4); // el doble que antes
+          this.lightning(t, inR[0], st.dmg * 3.6); // +50%
         }
       }
     }
@@ -2015,6 +2017,7 @@ export default class GameScene extends Phaser.Scene {
             slow: p.slow || 0,
             corrode: p.corrode,
             gold: !!p.gold,
+            bigGold: !!p.big,
             src: p.src,
           });
           if (p.big) this.addRing(p.tx, p.ty, p.zoneR, 0xffd700, 0.6);
@@ -2041,7 +2044,7 @@ export default class GameScene extends Phaser.Scene {
             for (let i = 0; i < 3; i++) {
               const e = live[i % live.length];
               const dur = Math.max(0.55, Math.hypot(e.x - p.x, e.y - p.y) / 650) + i * 1.0; // cada uno llega 1 s después que el anterior
-              this.projectiles.push({ kind: 'arcFrag', sx: p.x, sy: p.y, x: p.x, y: p.y, tx: e.x, ty: e.y, target: e, t: 0, dur, bend: BEND[i], dmg: p.dmg, src: p.src, trail: [] });
+              this.projectiles.push({ kind: 'arcFrag', sx: p.x, sy: p.y, x: p.x, y: p.y, tx: e.x, ty: e.y, target: e, t: 0, dur, bend: BEND[i], dmg: p.dmg * (i === 0 ? 2 : 1), src: p.src, trail: [] }); // la 1ª, 6 veces el daño de antes
             }
           }
         }
@@ -2070,7 +2073,11 @@ export default class GameScene extends Phaser.Scene {
         p.trail.forEach((q) => (q.life -= dt));
         if (k >= 1) {
           p.dead = true;
-          if (p.target && !p.target.dead) this.damage(p.target, p.dmg, { src: p.src, dtype: 'luz' });
+          if (p.target && !p.target.dead) {
+            this.damage(p.target, p.dmg, { src: p.src, dtype: 'luz' });
+            // congela 6 s a su zombi, también a jefes y minijefes
+            if (!p.target.dead) p.target.frozenUntil = Math.max(p.target.frozenUntil || 0, this.now + 6);
+          }
           this.addRing(p.x, p.y, 40, 0xb388ff, 0.45);
           playFx(this, 'fx_explosion2', p.x, p.y, 0.6, 27);
         }
@@ -2092,7 +2099,7 @@ export default class GameScene extends Phaser.Scene {
       }
       if (p.kind === 'orb' && p.nova) {
         // Supernova: aura de luz con daño continuo mientras vuela
-        for (const e of this.enemiesNear(p.x, p.y, 60)) this.damage(e, p.dmg * 4.5 * dt, { dot: true, src: p.src, dtype: 'luz' }); // x3
+        for (const e of this.enemiesNear(p.x, p.y, 60)) this.damage(e, p.dmg * 5.4 * dt, { dot: true, src: p.src, dtype: 'luz' }); // x3 y +20%
       }
       if (p.kind === 'arrow' && p.free) {
         // vuelo libre tras atravesar: recto, golpeando a lo que se cruce, hasta salir del mapa
@@ -2247,7 +2254,7 @@ export default class GameScene extends Phaser.Scene {
     if (p.nova) {
       this.addRing(x, y, p.blast, 0xfff2a8, 0.5);
       // aura de luz que se queda un momento haciendo daño continuo
-      this.zones.push({ x, y, r: p.blast * 1.3, life: 2.5, tick: 0, dps: p.dmg * 2.4, aura: true, dtype: 'luz', src: p.src }); // x3
+      this.zones.push({ x, y, r: p.blast * 1.3, life: 2.5, tick: 0, dps: p.dmg * 2.88, aura: true, dtype: 'luz', src: p.src }); // x3 y +20%
     }
     if (p.echo) {
       // Eco arcano: el hechizo se fragmenta en abanico hacia delante (en la dirección en que iba); los fragmentos atraviesan a todos los zombis
@@ -2333,7 +2340,11 @@ export default class GameScene extends Phaser.Scene {
             e.poisonSpread = !!z.epidemic;
             e.poisonSrc = z.src;
           }
-          if (z.gold) e.goldUntil = this.now + 6; // zombi dorado del Alquimista: 6 s (antes 10)
+          if (z.bigGold) {
+            // Pócima dorada: oro 15 s y la armadura a la mitad mientras dure
+            e.goldUntil = Math.max(e.goldUntil, this.now + 15);
+            e.armorHalfUntil = this.now + 15;
+          } else if (z.gold) e.goldUntil = Math.max(e.goldUntil, this.now + 6); // zombi dorado del Alquimista: 6 s
           this.damage(e, z.dps * 0.5, { src: z.src, dtype: z.dtype });
         }
       }
@@ -2434,7 +2445,7 @@ export default class GameScene extends Phaser.Scene {
     let a = amount;
     // tipo de daño: el que indica el ataque o el del héroe que lo hace
     const dt = opts.dtype || (opts.src && HERO_DTYPE[opts.src.type]) || 'normal';
-    if (!opts.ignoreResist) a *= 1 - (e.res[dt] || 0) * (dt === 'normal' ? opts.resMul ?? 1 : 1);
+    if (!opts.ignoreResist) a *= 1 - (e.res[dt] || 0) * (dt === 'normal' ? (opts.resMul ?? 1) * (e.armorHalfUntil > this.now ? 0.5 : 1) : 1);
     // luz y oscuridad: cada una hace más daño a los que resisten la otra
     if (dt === 'luz' && (e.res.oscuridad || 0) > 0) a *= 1.5;
     if (dt === 'oscuridad' && (e.res.luz || 0) > 0) a *= 1.5;

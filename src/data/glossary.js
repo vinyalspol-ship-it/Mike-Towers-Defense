@@ -25,7 +25,7 @@ export const GLOSSARY = [
     title: 'Pesado y Ágil',
     page: true,
     re: /pesad|empuj|ágil/i,
-    text: 'Pesado: solo se le puede empujar 3 veces (muy común desde el nivel 5). Ágil: se mueve mucho más rápido que un zombi normal.',
+    text: 'Pesado: solo se le puede empujar 3 veces (salen a partir del nivel 7). Ágil: se mueve mucho más rápido que un zombi normal.',
   },
   {
     key: 'inmunidades',

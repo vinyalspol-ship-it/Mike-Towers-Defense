@@ -25,7 +25,7 @@ export const TOWERS = {
         name: 'Torbellino',
         tiers: [
           { name: 'Furia', desc: 'Ataca un 30% más rápido', cost: 35 },
-          { name: 'Espada larga', desc: '+15% de alcance', cost: 55 },
+          { name: 'Espada larga', desc: '+25% de alcance', cost: 55 },
           { name: 'Ataque giratorio', desc: 'Golpea a todo su alrededor (360º)', cost: 110 },
           { name: 'Sed de sangre', desc: 'Tras cada baja suya, sus críticos hacen x5 de daño durante 5 s', cost: 200 }, // inventada
         ],
@@ -115,7 +115,7 @@ export const TOWERS = {
         name: 'Pócima expansiva',
         tiers: [
           { name: 'Poción grande', desc: 'Poción y zona un 30% mayores', cost: 45 },
-          { name: 'Residuo duradero', desc: 'La zona dura +2 s', cost: 65 }, // inventada
+          { name: 'Residuo duradero', desc: 'La zona dura +3 s', cost: 65 }, // inventada
           { name: 'Lanzador veloz', desc: 'Lanza un 30% más rápido', cost: 110 }, // inventada
           { name: 'Pócima volátil', desc: 'Explota al caer (x3 de daño)', cost: 200 }, // inventada
         ],
@@ -134,7 +134,7 @@ export const TOWERS = {
           {
             name: 'Pócima dorada',
             desc: 'ACTIVA: pócima enorme que vuelve dorados a los zombis (25 s)',
-            doc: 'ACTIVA: pócima ENORME que vuelve dorados a los zombis en un área mucho más grande (25 s)',
+            doc: 'ACTIVA: pócima ENORME que vuelve dorados a los zombis 15 s en un área mucho más grande y les reduce la armadura a la mitad (25 s)',
             cost: 210,
           },
         ],
@@ -145,7 +145,7 @@ export const TOWERS = {
           { name: 'Gran alcance', desc: '+20% de alcance', cost: 45 }, // inventada
           { name: 'Corrosión', desc: 'Zombis en la zona reciben +20% de daño', cost: 65 }, // inventada
           { name: 'Veneno', desc: 'Envenena 7 s (no acumulable)', cost: 120 },
-          { name: 'Epidemia', desc: 'Los envenenados contagian a los cercanos', cost: 210 }, // inventada
+          { name: 'Ácido sulfúrico', desc: 'El daño de veneno se multiplica por 5', cost: 210 },
         ],
       },
     },
@@ -157,7 +157,7 @@ export const TOWERS = {
     name: 'Mago',
     emoji: '🔮',
     color: 0x2874a6,
-    cost: 110,
+    cost: 80,
     desc: 'Daño en área.',
     skill: { name: 'Orbe arcano', icon: '🔮', cooldown: 15 },
     paths: {
@@ -174,8 +174,8 @@ export const TOWERS = {
           },
           {
             name: 'Supernova',
-            desc: 'Cada 5º hechizo: aura de luz con daño continuo (daño de luz, x3)',
-            doc: 'Cada 5º hechizo: el hechizo gana un aura de luz que hace mucho daño continuo (el triple que antes) a los zombis cercanos',
+            desc: 'Cada 5º hechizo: aura de luz con daño continuo (daño de luz, x3 y +20%)',
+            doc: 'Cada 5º hechizo: el hechizo gana un aura de luz que hace mucho daño continuo a los zombis cercanos (daño de luz).',
             cost: 190,
           },
         ],
@@ -193,8 +193,8 @@ export const TOWERS = {
           { name: 'Cadáveres ardientes', desc: 'Los que mueren ardiendo explotan', cost: 125 },
           {
             name: 'Orbe arcano',
-            desc: 'ACTIVA: carga 5 s un orbe que se divide en 3 y persigue a los 3 zombis con más vida (15 s)',
-            doc: 'ACTIVA: el Mago carga una bola de magia sobre su cabeza durante 5 s. Después se fragmenta en 3 orbes púrpura que, con trayectorias curvas, van hacia los 3 zombis con más vida. Cada orbe hace el daño de 5 hechizos del Mago. Recarga: 15 s.',
+            desc: 'ACTIVA: carga 5 s un orbe que se divide en 3, persigue a los 3 zombis con más vida y los congela 6 s (15 s)',
+            doc: 'ACTIVA: el Mago carga una bola de magia sobre su cabeza durante 5 s. Después se fragmenta en 3 orbes púrpura que, con trayectorias curvas, van hacia los 3 zombis con más vida. Cada orbe hace el daño de 15 hechizos del Mago (el primero, de 30) y congela 6 s a su zombi, también a jefes y minijefes. Recarga: 15 s.',
             cost: 220,
           },
         ],
@@ -203,12 +203,12 @@ export const TOWERS = {
         name: 'Tormenta',
         tiers: [
           { name: 'Orbe gélido', desc: 'Ralentiza un 25% durante 8 s (no acumulable)', doc: 'Ralentiza un 25% durante 8s. El efecto gélido no es acumulable.', cost: 45 },
-          { name: 'Largo alcance', desc: '+20% de alcance', cost: 65 },
+          { name: 'Largo alcance', desc: '+30% de alcance', cost: 65 },
           { name: 'Orbe doble', desc: 'Lanza otro orbe gélido tras disparar', cost: 140 },
           {
             name: 'Cadena de rayos',
-            desc: 'Cada 4 s: rayo eléctrico que salta entre muchos enemigos (daño eléctrico)',
-            doc: 'Cada 4 s lanza un rayo que salta casi al instante entre hasta 14 enemigos cercanos, en zigzag. Hace daño eléctrico, el doble que antes.',
+            desc: 'Cada 4 s: rayo eléctrico que salta entre muchos enemigos (daño eléctrico, +50%)',
+            doc: 'Cada 4 s lanza un rayo que salta casi al instante entre hasta 14 enemigos cercanos, en zigzag. Hace daño eléctrico: 3,6 veces el daño de un hechizo en cada salto.',
             cost: 220,
           },
         ],
@@ -243,7 +243,7 @@ for (const t of Object.values(EXTRA_TOWERS)) {
 }
 // Mejoras de nivel 3 y 4 de menor impacto: un 8% más baratas todavía
 const LOW_IMPACT = new Set([
-  'Sed de sangre', 'Conquistador', 'Ataque múltiple', 'Ojo de halcón', 'Ejecutor', 'Lanzador veloz', 'Pócima volátil', 'Epidemia',
+  'Sed de sangre', 'Conquistador', 'Ataque múltiple', 'Ojo de halcón', 'Ejecutor', 'Lanzador veloz', 'Pócima volátil', 'Ácido sulfúrico',
   'Cadáveres ardientes', 'Orbe doble', 'Supernova', 'Empalamiento', 'Muro de picas', 'Abanico', 'Lanza del rey', 'Santuario',
   'Misericordia', 'Plaga bendita', 'Ascensión', 'Campo minado', 'Taller móvil', 'Detonación en cadena', 'Autómata', 'Gran rebote',
   'Sobrecalentamiento', 'Golpe de gracia', 'Estatua', 'Soborno', 'Midas verdadero', 'Cofre del tirano', 'Horda', 'Pacto de sangre',
@@ -289,6 +289,16 @@ const FIXED_COST = {
   asedio: { 'Triple-cañón': 380, 'Golpe de gracia': 520 },
   nigromante: { 'Resurrección': 70, 'Inestables': 110, 'Señor de los muertos': 420 },
 };
+// -20% en todas las mejoras de nivel 4 del Bárbaro, el Mago, el Alquimista y el Elfo, y en las de nivel 3 del Bárbaro
+for (const id of ['barbaro', 'mago', 'alquimista', 'elfo']) {
+  for (const p of Object.values(TOWERS[id].paths)) {
+    p.tiers[3].cost = Math.round((p.tiers[3].cost * 0.8) / 5) * 5;
+    if (id === 'barbaro') p.tiers[2].cost = Math.round((p.tiers[2].cost * 0.8) / 5) * 5;
+  }
+}
+FIXED_COST.elfo['Punta de acero'] = 230; // 290 - 20%
+FIXED_COST.alquimista = { 'Poción grande': 40 };
+FIXED_COST.mago = { 'Cadena de rayos': 300, 'Orbe arcano': 350 };
 for (const [id, list] of Object.entries(FIXED_COST)) {
   for (const u of Object.values(TOWERS[id].paths).flatMap((p) => p.tiers)) if (list[u.name] !== undefined) u.cost = list[u.name];
 }

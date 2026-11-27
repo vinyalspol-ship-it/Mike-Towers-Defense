@@ -76,8 +76,8 @@ export const EXTRA_TOWERS = {
         tiers: [
           { name: 'Palabra de silencio', desc: 'Cada 4 s aturde 0,5 s al zombi más cercano', cost: 35 },
           { name: 'Rezo', desc: 'El aturdimiento dura 2 s', cost: 90 },
-          { name: 'Exorcismo', desc: 'Los zombis con menos del 20% de vida en su rango se desintegran y explotan en luz', cost: 220 },
-          { name: 'Plaga bendita', desc: 'Los exorcizados contagian el aturdimiento a los cercanos', cost: 700 },
+          { name: 'Exorcismo', desc: 'Los zombis con menos del 15% de vida en su rango se desintegran y explotan en luz', cost: 220 },
+          { name: 'Plaga bendita', desc: 'Al aturdir a un enemigo, aturde también hasta 3 enemigos cercanos', cost: 700 },
         ],
       },
     },

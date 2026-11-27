@@ -307,8 +307,19 @@ export const NewTowers = {
             const tg = this.pickTarget(t, s.range);
             if (tg) {
               t.stunT = 0;
-              this.ntImmobilize(tg, s.stunDur, 1);
-              this.addRing(tg.x, tg.y, 30, 0xfff59d, 0.4);
+              if (this.ntImmobilize(tg, s.stunDur, 1)) {
+                this.addRing(tg.x, tg.y, 30, 0xfff59d, 0.4);
+                // Plaga bendita: aturde también hasta 3 enemigos cercanos
+                if (s.plague) {
+                  this.enemies
+                    .filter((o) => o !== tg && !o.dead && Math.hypot(o.x - tg.x, o.y - tg.y) <= 110)
+                    .sort((a, b) => Math.hypot(a.x - tg.x, a.y - tg.y) - Math.hypot(b.x - tg.x, b.y - tg.y))
+                    .slice(0, 3)
+                    .forEach((o) => {
+                      if (this.ntImmobilize(o, s.stunDur, 1)) this.addRing(o.x, o.y, 24, 0xfff59d, 0.35);
+                    });
+                }
+              }
             }
           }
         }
@@ -325,15 +336,12 @@ export const NewTowers = {
           if (t.exoT <= 0) {
             t.exoT = 0.25;
             for (const e of this.enemiesNear(t.x, t.y, s.range)) {
-              if (e.def.boss || e.def.mini || e.hp / e.maxHp >= 0.2) continue;
+              if (e.def.boss || e.def.mini || e.hp / e.maxHp >= 0.15) continue;
               this.addRing(e.x, e.y, 60, 0xfff59d, 0.4);
               const ex = e.x;
               const ey = e.y;
               this.damage(e, e.hp + 1, { src: t, ignoreResist: true });
               this.ntSplash(ex, ey, 60, 40, { src: t, color: 0xfff59d });
-              if (s.plague) {
-                for (const o of this.enemiesNear(ex, ey, 90)) this.ntImmobilize(o, 1.5, 0.5);
-              }
             }
           }
         }

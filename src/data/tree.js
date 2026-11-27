@@ -213,7 +213,7 @@ function bestChainAngle(n, r0, step) {
 const CHAIN = [
   ['auto_skills', 'Lanzamiento automático', 'Cuesta 100 monedas. Aparece un botón AUTO en la partida: las habilidades activas se lanzan solas en cuanto están listas y hay zombis en el mapa.', 100, '⚡', 0xaf7ac5, 'coins'],
   // espacio 4: 1 cerebro · espacio 5: 1000 de oro · espacio 6: 2 cerebros
-  ...[[1, 'brains'], [1000, 'coins'], [2, 'brains']].map(([cost, cur], i) => [
+  ...[[400, 'coins'], [1000, 'coins'], [2, 'brains']].map(([cost, cur], i) => [
     'slot_' + (i + 4),
     `Equipo: espacio ${i + 4}`,
     `Cuesta ${cost} ${cur === 'brains' ? (cost > 1 ? 'cerebros' : 'cerebro') : 'monedas'}. Podrás llevar ${i + 4} héroes distintos a cada batalla (se eligen en Equipo, en el menú principal).`,
