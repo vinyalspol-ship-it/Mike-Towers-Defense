@@ -64,12 +64,12 @@ export const TOWERS = {
       A: {
         name: 'Arquero ágil',
         tiers: [
-          { name: 'Disparo rápido', desc: 'Dispara un 40% más rápido', cost: 40 },
+          { name: 'Disparo rápido', desc: 'Dispara un 35% más rápido', cost: 40 },
           { name: 'Cazador', desc: '+5% daño por zombi cercano (máx. x2)', cost: 60 },
           {
             name: 'Magia oscura',
-            desc: 'Ignoran la armadura. x2 de daño a jefes y minijefes',
-            doc: 'Las flechas del elfo ignoran la armadura de los enemigos. X2 de daño a jefes y minijefes.',
+            desc: 'Daño de oscuridad, +1 de penetración y x2 de daño a jefes y minijefes',
+            doc: 'Las flechas del Elfo pasan a hacer daño de oscuridad (más daño a los que resisten la luz; ya no ignoran las resistencias). +1 de penetración y x2 de daño a jefes y minijefes.',
             cost: 120,
           },
           { name: 'Ejecutor', desc: 'x3 de daño a zombis con menos del 35% de vida', cost: 210 },
@@ -78,7 +78,7 @@ export const TOWERS = {
       B: {
         name: 'Maestro del arco',
         tiers: [
-          { name: 'Ojo de águila', desc: '+20% de alcance', cost: 40 }, // inventada
+          { name: 'Ojo de águila', desc: '+20% de alcance', cost: 40 }, // 35 en partida (los niveles 1 y 2 cuestan un 15% menos)
           { name: 'Doble flecha', desc: 'Dispara +1 flecha', cost: 65 },
           { name: 'Ojo de halcón', desc: '+40% de alcance y +30% de probabilidad de crítico', doc: '+40% de alcance y +30% de probabilidad de crítico (x2 de daño)', cost: 115 },
           { name: 'Lluvia de flechas', desc: 'ACTIVA: cae sobre todos los zombis y los Elfos disparan el doble de rápido 5 s (17 s)', cost: 200 },
@@ -87,20 +87,15 @@ export const TOWERS = {
       C: {
         name: 'Francotirador',
         tiers: [
-          { name: 'Carcaj reforzado', desc: '+25% de daño', cost: 40 }, // inventada
+          { name: 'Flechas afiladas', desc: '+1 de penetración (atraviesan a un zombi más)', doc: '+1 de penetración: la flecha atraviesa al primer zombi y sigue hacia el siguiente alineado.', cost: 65 }, // 55 en partida
           { name: 'Flechas gélidas', desc: 'Ralentizan un 25% durante 1,5 s', cost: 60 }, // inventada
-          {
-            name: 'Flechas afiladas',
-            desc: 'Atraviesan hasta 3 zombis alineados',
-            doc: '+2 de penetración (la flecha desaparece tras impactar sobre el 3r zombi si están alineados)',
-            cost: 115,
-          },
           {
             name: 'Telequinesis',
             desc: 'Al atravesar, la flecha se curva hacia otro enemigo',
             doc: 'Las flechas que atraviesan a un enemigo se redirigen en forma de curva hacia el siguiente enemigo.',
-            cost: 210,
+            cost: 190, // 150 en partida
           },
+          { name: 'Punta de acero', desc: '+3 de penetración', doc: '+3 de penetración: cada flecha atraviesa a 3 zombis más.', cost: 390 }, // 290 en partida
         ],
       },
     },
@@ -179,7 +174,7 @@ export const TOWERS = {
           },
           {
             name: 'Supernova',
-            desc: 'Cada 5º hechizo: aura de luz con daño continuo (x3 de daño)',
+            desc: 'Cada 5º hechizo: aura de luz con daño continuo (daño de luz, x3)',
             doc: 'Cada 5º hechizo: el hechizo gana un aura de luz que hace mucho daño continuo (el triple que antes) a los zombis cercanos',
             cost: 190,
           },
@@ -212,8 +207,8 @@ export const TOWERS = {
           { name: 'Orbe doble', desc: 'Lanza otro orbe gélido tras disparar', cost: 140 },
           {
             name: 'Cadena de rayos',
-            desc: 'Cada pocos segundos: rayo que salta entre enemigos',
-            doc: 'Cada pocos segundos dispara un ataque continuo que, tras impactar, se redirige casi instantáneamente hacia los enemigos en un rango medio alto',
+            desc: 'Cada 4 s: rayo eléctrico que salta entre muchos enemigos (daño eléctrico)',
+            doc: 'Cada 4 s lanza un rayo que salta casi al instante entre hasta 14 enemigos cercanos, en zigzag. Hace daño eléctrico, el doble que antes.',
             cost: 220,
           },
         ],
@@ -284,6 +279,18 @@ for (const t of Object.values(TOWERS)) {
   for (const p of Object.values(t.paths)) {
     for (const u of p.tiers) if (HIGH_IMPACT[u.name]) u.cost = Math.round((u.cost * HIGH_IMPACT[u.name]) / 5) * 5;
   }
+}
+
+// Precios fijos en partida (decididos a mano: se aplican después de todas las reglas anteriores)
+const FIXED_COST = {
+  elfo: { 'Ojo de águila': 35, 'Flechas afiladas': 55, 'Telequinesis': 150, 'Punta de acero': 290 },
+  lancero: { 'Clavar lanza': 75, 'Lanza recuperable': 120, 'Abanico': 290, 'Lanza del rey': 370 },
+  ingeniero: { 'Cepos': 50, 'Torreta de ballesta': 60, 'Batería de torretas': 100, 'Torretas especiales': 345, 'Sobrecarga': 570, 'Chatarrero': 185 },
+  asedio: { 'Triple-cañón': 380, 'Golpe de gracia': 520 },
+  nigromante: { 'Resurrección': 70, 'Inestables': 110, 'Señor de los muertos': 420 },
+};
+for (const [id, list] of Object.entries(FIXED_COST)) {
+  for (const u of Object.values(TOWERS[id].paths).flatMap((p) => p.tiers)) if (list[u.name] !== undefined) u.cost = list[u.name];
 }
 
 export const TOWER_ORDER = ['barbaro', 'elfo', 'alquimista', 'mago', 'lancero', 'monje', 'ingeniero', 'asedio', 'midas', 'nigromante', 'druida'];

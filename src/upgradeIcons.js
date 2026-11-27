@@ -17,6 +17,7 @@ const SKILL_ICON = {
   'Orbe arcano': 'arcane',
   'Ataque fantasma': 'ghost',
   'Juicio divino': 'holy',
+  'Ascensión': 'holy',
   Sobrecarga: 'lightning',
   Aluvión: 'bomb',
   'Fiebre del oro': 'bag',

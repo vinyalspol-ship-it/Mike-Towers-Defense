@@ -7,21 +7,22 @@ import { load, reset, save } from '../storage.js';
 import { makeButton, title, woodPanel, infoIcon, hideTip } from '../ui.js';
 import { GLOSSARY, glossaryFor } from '../data/glossary.js';
 import { ENEMIES, enemyInfo } from '../data/enemies.js';
+import { DTYPES, HERO_DTYPE, isAntiAir } from '../data/damage.js';
 import { LEVELS, ENEMY_ORDER, enemiesOfLevel, seenEnemies } from '../levelInfo.js';
 
 // Datos base y consejos de cada defensa (las cifras salen de GameScene.stats() / newTowers.js: actualizar si cambian)
 const INFO = {
   barbaro: { stats: ['Daño 16 · 1 golpe/s', 'Alcance 95 · cono de 72º', 'Crítico 5% (x2)'], tip: 'Pégalo al camino: golpea a todos los zombis del cono. Muy barato, ideal para empezar. El camino C lo especializa contra jefes.' },
-  elfo: { stats: ['Daño 9 · 1,25 salvas/s', 'Alcance 250 (el mayor de las defensas básicas)', 'Flechas que pueden atravesar'], tip: 'Colócalo en el centro del mapa para cubrir varios tramos. Con las flechas afiladas, las que no encuentran más zombis siguen su camino.' },
+  elfo: { stats: ['Daño 9 · 1,25 salvas/s', 'Alcance 212 (el mayor de los héroes básicos)', 'Flechas que pueden atravesar'], tip: 'Colócalo en el centro del mapa para cubrir varios tramos. Con las flechas afiladas, las que no encuentran más zombis siguen su camino.' },
   alquimista: { stats: ['Zona de 9 de daño/s durante 3 s', 'Alcance 161 · radio de zona 40', 'Lanza una poción cada 2,4 s'], tip: 'Excelente contra grupos y zombis lentos. Las pociones doradas dan un 30% más de suministros por zombi. Ojo con los tóxicos: son inmunes al veneno.' },
   mago: { stats: ['Daño 18 · explosión de radio 50', 'Alcance 115 (corto) · 1 hechizo cada 1,6 s', 'Orbes con efectos de hielo o fuego'], tip: 'Mucho daño en área pero poco alcance: ponlo en las curvas del camino. Los ignífugos aguantan sus llamas.' },
-  lancero: { stats: ['Daño 20 · 1 estocada cada 1,1 s', 'Alcance 135 · línea que atraviesa a todos', 'Zona muerta: ninguna'], tip: 'Mejor donde el camino es recto y los zombis van en fila. Sus mejoras controlan (anclan, marcan) o multiplican el daño por combos.' },
-  monje: { stats: ['Daño 7 · rayo cada 1,1 s', 'Alcance 170 · aura de 150', 'Su valor está en potenciar a otras defensas'], tip: 'Colócalo en el centro de tu defensa, rodeado de torres: su aura mejora cadencia y daño a las cercanas.' },
-  ingeniero: { stats: ['Daño 6 · llave cada 1,3 s (casi nada)', 'Alcance 140', 'Trampas, torretas y golem según mejoras'], tip: 'No es de daño directo: coloca trampas en el camino, monta torretas o llama a un golem. Brilla con varias mejoras.' },
-  asedio: { stats: ['Daño 42 · roca cada 2,6 s', 'Alcance 340 · zona muerta de 85', 'Explosión de radio 50'], tip: 'Artillería de largo alcance: no golpea lo que tiene cerca, así que cubre a las demás. Las rocas tardan en caer: los rápidos se le escapan hasta que aprende a anticipar.' },
+  lancero: { stats: ['Daño 80 · 1 estocada cada 3 s', 'Alcance 135 · línea que atraviesa a todos', 'Zona muerta: ninguna'], tip: 'Mejor donde el camino es recto y los zombis van en fila. Sus mejoras controlan (anclan, marcan) o multiplican el daño por combos.' },
+  monje: { stats: ['Daño 7 · rayo cada 1,1 s', 'Alcance 170 · aura de 150', 'Su valor está en potenciar a otros héroes'], tip: 'Colócalo en el centro de tu formación, rodeado de héroes: su aura mejora la cadencia y el daño de los cercanos.' },
+  ingeniero: { stats: ['Daño 12 · tornillo cada 1,3 s', 'Alcance 140', 'Trampas, torretas y golem según mejoras'], tip: 'No es de daño directo: coloca trampas en el camino, monta torretas o llama a un golem. Brilla con varias mejoras.' },
+  asedio: { stats: ['Daño 120 · roca cada 2,8 s', 'Alcance 340 · zona muerta de 85', 'Explosión de radio 50'], tip: 'Artillería de largo alcance: no golpea lo que tiene cerca, así que cubre a las demás. Las rocas tardan en caer: los rápidos se le escapan hasta que aprende a anticipar.' },
   midas: { stats: ['Daño 5 · rayo cada 1,4 s', 'Alcance 175', 'Casi no hace daño: genera suministros'], tip: 'Rinde si dura muchas oleadas. Con el Recaudador guarda suministros en su inventario: recógelos con el botón de su panel. Su contador muestra cuánto oro ha recaudado en total.' },
-  druida: { stats: ['Daño 11 · hoja cada 1,2 s', 'Alcance 170', 'Raíces, lobos y polillas según mejoras'], tip: 'Defensa de control: inmoviliza a los primeros zombis, suelta lobos y ralentiza con arbustos. Con Foco arcano castiga a los minijefes.' },
-  nigromante: { stats: ['Daño 15 · rayo oscuro cada 1,6 s', 'Alcance 190', 'Esbirros, maldiciones y almas según mejoras'], tip: 'Usa a los zombis contra ellos mismos: resucita caídos, maldice a los fuertes y carga almas con las bajas.' },
+  druida: { stats: ['Daño 11 · hoja cada 1,2 s', 'Alcance 170', 'Raíces, lobos y polillas según mejoras'], tip: 'Héroe de control: inmoviliza a los primeros zombis, suelta lobos y ralentiza con arbustos. Con Foco arcano castiga a los minijefes.' },
+  nigromante: { stats: ['Daño 95 · bola oscura cada 3,2 s', 'Alcance 190', 'Esbirros, maldiciones y almas según mejoras'], tip: 'Usa a los zombis contra ellos mismos: resucita caídos, maldice a los fuertes y carga almas con las bajas.' },
 };
 
 // Códice de Evelmore: libro de dos páginas. A la izquierda la defensa; a la derecha, descripción y detalles.
@@ -66,7 +67,7 @@ export default class CodexScene extends Phaser.Scene {
       const on = this.mode === mode || (mode === 'enemies' && this.mode === 'level');
       makeButton(this, x, 10, 130, 42, label, () => this.scene.restart({ mode, index: 0, back: this.backPage }), { fontSize: 17, fill: on ? 0x2f6f4a : 0x5b4636, depth: 12 });
     };
-    tab(156, 'Defensas', 'towers');
+    tab(156, 'Héroes', 'towers');
     tab(296, 'Enemigos', 'enemies');
     makeButton(this, W - 214, 10, 200, 42, '⚔ Equipo', () => this.scene.start('Team'), { fontSize: 18, fill: 0x2f6f4a, depth: 12 });
     // pasar página: botones y flechas del teclado
@@ -138,7 +139,7 @@ export default class CodexScene extends Phaser.Scene {
     add(this.add.text(lx + lw / 2, 148, known ? def.desc : 'Aún no lo has encontrado en ninguna partida.', { fontFamily: EMOJI_FONT, fontSize: '16px', color: ink, fontStyle: 'italic', align: 'center', wordWrap: { width: lw - 50 } }).setOrigin(0.5, 0).setDepth(5));
     add(this.add.ellipse(lx + lw / 2, 450, 220, 36, 0x000000, 0.18).setDepth(4));
     // alto real de la figura dentro del fotograma y dónde están sus pies (orco/soldado: fotogramas de 100 px; hobgoblin: 16 px)
-    const FIG = { orc_walk: [15, 0.57], sol_walk: [21, 0.6], gob_run: [16, 0.97] }[def.art.key] || [20, 0.6];
+    const FIG = { orc_walk: [15, 0.57], sol_walk: [21, 0.6], gob_run: [16, 0.97] }[def.art.key] || (def.flying ? [62, 0.75] : [20, 0.6]);
     const sc = (150 + Math.min(100, def.size)) / FIG[0];
     const spr = add(this.add.sprite(lx + lw / 2, 450, def.art.key).setOrigin(0.5, FIG[1]).setScale(sc).setDepth(5));
     spr.play(def.art.key);
@@ -179,16 +180,25 @@ export default class CodexScene extends Phaser.Scene {
     const rx = W / 2 + 26;
     const rw = W / 2 - 106;
     add(this.add.text(lx + lw / 2, 112, 'Glosario de combate', { fontFamily: FONT, fontSize: '32px', color: '#7b241c', fontStyle: 'bold' }).setOrigin(0.5).setDepth(5));
-    add(this.add.text(lx + 30, 170, 'Las dos resistencias', { fontFamily: FONT, fontSize: '22px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
-    const body = (txt, y, w = lw - 60) => add(this.add.text(lx + 30, y, txt, { fontFamily: EMOJI_FONT, fontSize: '16px', color: ink, lineSpacing: 4, wordWrap: { width: w } }).setDepth(5));
-    const a = body('🛡 Armadura (resistencia física): el enemigo absorbe un porcentaje del daño de los golpes físicos.\n\nLa ignoran: los ataques mágicos (Mago, Nigromante, Druida), el veneno, el fuego (todo daño continuo) y las habilidades que lo indican, como la Lluvia de flechas y la Magia oscura del Elfo.', 204);
-    body('✨ Resistencia mágica: el enemigo reduce un porcentaje del daño de las fuentes mágicas: Mago, Nigromante y Druida. No afecta a los golpes físicos.\n\nUn enemigo puede tener solo una de las dos, o un poco de cada. Los blindados, por ejemplo, tienen mucha armadura: la magia los funde.', 204 + a.height + 18);
+    add(this.add.text(lx + 30, 150, 'Tipos de daño y resistencias', { fontFamily: FONT, fontSize: '22px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
+    const body = (txt, y, w = lw - 60, size = 14) => add(this.add.text(lx + 30, y, txt, { fontFamily: EMOJI_FONT, fontSize: size + 'px', color: ink, lineSpacing: 3, wordWrap: { width: w } }).setDepth(5));
+    const a = body('Cada zombi resiste un % de cada tipo de daño. Todos tienen algo de resistencia normal, que sube con las rondas y los niveles, y en cada nivel muchos tienen una resistencia predominante (anillo de color bajo los pies).', 180);
+    body([
+      '• Normal: Elfo, Bárbaro, Lancero, Ingeniero, Maestro de asedio, Rey Midas',
+      '• Mágico: Mago y Alquimista',
+      '• Fuego: quemadura, disparo volcánico, brea',
+      '• Veneno: pociones del Alquimista',
+      '• Eléctrico: rayos del Mago',
+      '• Oscuridad: Nigromante y Magia oscura del Elfo. Hace más daño a los que resisten la luz',
+      '• Luz: Monje, Supernova y Orbe arcano. Hace más daño a los que resisten la oscuridad',
+      '• Natural: Druida',
+    ].join('\n'), 190 + a.height, lw - 60, 14);
     add(this.add.text(lx + lw / 2, 590, `${TOWER_ORDER.length + 1} / ${TOWER_ORDER.length + 1}`, { fontFamily: FONT, fontSize: '16px', color: '#6d5a45' }).setOrigin(0.5).setDepth(5));
-    let y = 100;
-    GLOSSARY.filter((g) => g.key !== 'armadura' && g.key !== 'magica').forEach((g) => {
-      add(this.add.text(rx, y, g.title, { fontFamily: FONT, fontSize: '19px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
-      const t = add(this.add.text(rx, y + 25, g.text, { fontFamily: EMOJI_FONT, fontSize: '15px', color: ink, lineSpacing: 2, wordWrap: { width: rw } }).setDepth(5));
-      y += 25 + t.height + 14;
+    let y = 96;
+    GLOSSARY.filter((g) => g.page).forEach((g) => {
+      add(this.add.text(rx, y, g.title, { fontFamily: FONT, fontSize: '16px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
+      const t = add(this.add.text(rx, y + 20, g.text, { fontFamily: EMOJI_FONT, fontSize: '13px', color: ink, lineSpacing: 1, wordWrap: { width: rw } }).setDepth(5));
+      y += 20 + t.height + 8;
     });
   }
 
@@ -228,7 +238,9 @@ export default class CodexScene extends Phaser.Scene {
     });
     add(this.add.text(lx + lw / 2, 462, `Coste de construcción: 🛠 ${def.cost}`, { fontFamily: EMOJI_FONT, fontSize: '20px', color: ink, fontStyle: 'bold' }).setOrigin(0.5).setDepth(5));
     add(this.add.text(lx + lw / 2, 494, `Habilidad especial: ${def.skill.icon} ${def.skill.name} (recarga ${def.skill.cooldown} s)`, { fontFamily: EMOJI_FONT, fontSize: '16px', color: ink, align: 'center', wordWrap: { width: lw - 50 } }).setOrigin(0.5, 0).setDepth(5));
-    add(this.add.text(lx + lw / 2, 560, open ? '(pulsa a la defensa para verla atacar)' : '🔒 Aún no la has desbloqueado en el árbol de mejoras', { fontFamily: EMOJI_FONT, fontSize: '14px', color: open ? '#6d5a45' : '#7b241c' }).setOrigin(0.5).setDepth(5));
+    const dtk = HERO_DTYPE[id] || 'normal';
+    add(this.add.text(lx + lw / 2, 530, `Daño: ${DTYPES[dtk].name}  ·  ${isAntiAir(id) ? '✈ Antiaéreo (ataca a los voladores)' : '✖ No ataca a los voladores'}`, { fontFamily: EMOJI_FONT, fontSize: '15px', color: isAntiAir(id) ? '#1b5e20' : '#7b241c', fontStyle: 'bold', align: 'center', wordWrap: { width: lw - 40 } }).setOrigin(0.5).setDepth(5));
+    add(this.add.text(lx + lw / 2, 560, open ? '(pulsa al héroe para verlo atacar)' : '🔒 Aún no lo has desbloqueado en el árbol de mejoras', { fontFamily: EMOJI_FONT, fontSize: '14px', color: open ? '#6d5a45' : '#7b241c' }).setOrigin(0.5).setDepth(5));
     add(this.add.text(lx + lw / 2, 590, `${this.idx + 1} / ${TOWER_ORDER.length}`, { fontFamily: FONT, fontSize: '16px', color: '#6d5a45' }).setOrigin(0.5).setDepth(5));
 
     // ---------------- página derecha: detalles
@@ -236,7 +248,7 @@ export default class CodexScene extends Phaser.Scene {
     const rw = W / 2 - 106;
     add(this.add.text(rx, 100, 'Datos base', { fontFamily: FONT, fontSize: '20px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
     add(this.add.text(rx, 126, info.stats.map((s) => '• ' + s).join('\n'), { fontFamily: EMOJI_FONT, fontSize: '15px', color: ink, lineSpacing: 3, wordWrap: { width: rw } }).setDepth(5));
-    add(this.add.text(rx, 204, 'Cómo usarla', { fontFamily: FONT, fontSize: '20px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
+    add(this.add.text(rx, 204, 'Cómo usarlo', { fontFamily: FONT, fontSize: '20px', color: '#7b241c', fontStyle: 'bold' }).setDepth(5));
     add(this.add.text(rx, 230, info.tip, { fontFamily: EMOJI_FONT, fontSize: '15px', color: ink, wordWrap: { width: rw } }).setDepth(5));
     add(this.add.text(rx, 318, 'Mejoras (3 caminos de 4 niveles; nivel 3 solo en 2 caminos, nivel 4 solo en uno)', { fontFamily: FONT, fontSize: '14px', color: '#6d5a45', fontStyle: 'bold', wordWrap: { width: rw } }).setDepth(5));
     const colW = Math.floor(rw / 3) - 4;

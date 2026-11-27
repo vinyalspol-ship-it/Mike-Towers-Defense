@@ -8,6 +8,7 @@ import { musicOn, toggleMusic, bindMusicKey } from '../music.js';
 import { addFullscreenButton } from '../fullscreen.js';
 import { TOWER_ART } from '../towerArt.js';
 import { STAGES, PER_STAGE, stageOf, teamFor } from '../levelInfo.js';
+import { DTYPES, predomOf } from '../data/damage.js';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -45,8 +46,9 @@ export default class MenuScene extends Phaser.Scene {
     add(makeButton(this, W / 2 - 100, 392, 200, 56, 'Aceptar', () => objs.forEach((o) => o.destroy && o.destroy()), { fontSize: 24, fill: 0x2d6a4f, depth: 203 }));
   }
 
-  // Ficha de un nivel: número, etapa, estrellas, equipo con sus iconos, ver mapa, enemigos y jugar
-  openLevel(lv, i) {
+  // Ficha de un nivel: número, etapa, estrellas, equipo con sus iconos, ver mapa, enemigos y jugar.
+  // Con inf = true se muestra la versión del MODO INFERNAL (tonos oscuros); se cambia con la pestaña de arriba a la derecha.
+  openLevel(lv, i, inf = false) {
     const sv = this.sv;
     const unlocked = i === 0 || sv.cleared[LEVELS[i - 1].id];
     const done = sv.cleared[lv.id];
@@ -57,10 +59,39 @@ export default class MenuScene extends Phaser.Scene {
     const close = () => objs.forEach((o) => o.destroy && o.destroy());
     const cx = W / 2;
     add(this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0).setDepth(100).setInteractive());
+    // pestaña del modo infernal (arriba a la derecha del recuadro): cambia entre la ficha normal y la infernal
+    if (!lv.tutorial) {
+      const tab = add(this.add.rectangle(cx + 196, 66, 104, 42, inf ? 0x5b4636 : 0x4a0a0a).setOrigin(0, 0).setStrokeStyle(3, inf ? 0x2e1c0f : 0xff3d00).setDepth(100.5).setInteractive({ useHandCursor: true }));
+      add(this.add.text(cx + 248, 86, inf ? '◀ Normal' : '🔥 Infernal', { fontFamily: EMOJI_FONT, fontSize: '16px', color: inf ? '#fff4d6' : '#ff9e80', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setDepth(100.6));
+      tab.on('pointerdown', () => {
+        close();
+        this.openLevel(lv, i, !inf);
+      });
+    }
+    if (inf) {
+      // versión infernal: tablón oscuro con brillo rojo
+      add(this.add.rectangle(cx - 310, 96, 620, 520, 0x1a0505, 1).setOrigin(0, 0).setStrokeStyle(5, 0x8b0000).setDepth(101));
+      add(this.add.rectangle(cx - 300, 106, 600, 500, 0x2a0808, 1).setOrigin(0, 0).setStrokeStyle(2, 0xff3d00, 0.6).setDepth(101));
+      add(title(this, cx, 142, `🔥 Nivel ${lv.id} · INFERNAL 🔥`, 34, '#ff6e40').setDepth(102));
+      const infDone = (sv.infernal && sv.infernal[lv.id]) || 0;
+      add(this.add.text(cx, 186, 'Hasta la ronda 25 · dos oleadas masivas · primeras rondas más rápidas\nZombis mucho más resistentes · Primera victoria: +2 cerebros (no da oro)', { fontFamily: FONT, fontSize: '16px', color: '#ffccbc', align: 'center', lineSpacing: 4, stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 0).setDepth(102));
+      if (!done) {
+        add(this.add.text(cx, 318, '🔒', { fontFamily: EMOJI_FONT, fontSize: '64px' }).setOrigin(0.5).setDepth(102));
+        add(title(this, cx, 386, 'BLOQUEADO', 34, '#ff5252').setDepth(102));
+        add(this.add.text(cx, 420, 'Completa primero el nivel en modo normal', { fontFamily: FONT, fontSize: '17px', color: '#ffab91', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setDepth(102));
+      } else {
+        add(this.add.text(cx, 290, infDone ? `${'★'.repeat(infDone)}${'☆'.repeat(3 - infDone)}` : 'Todavía sin completar', { fontFamily: EMOJI_FONT, fontSize: infDone ? '40px' : '20px', color: '#ff6e40', stroke: '#000000', strokeThickness: 5 }).setOrigin(0.5).setDepth(102));
+        add(makeButton(this, cx - 135, 380, 270, 70, '🔥 Jugar infernal', () => this.scene.start('Game', { level: lv.id, infernal: true }), { fontSize: 24, fill: 0x8b0000, depth: 103 }));
+      }
+      add(makeButton(this, cx - 135, 520, 270, 58, 'Cerrar', close, { fontSize: 22, fill: 0x3e2723, depth: 103 }));
+      return;
+    }
     add(woodPanel(this, cx - 310, 96, 620, 520, 101, 16));
     add(title(this, cx, 142, `Nivel ${lv.id}`, 40).setDepth(102));
     add(this.add.text(cx, 184, `${lv.name.replace(/ · \d+/, '')} · Etapa ${stageNum}: ${STAGES[stageNum - 1].name}`, { fontFamily: FONT, fontSize: '18px', color: '#ffe9a0', fontStyle: 'bold', stroke: '#2e1c0f', strokeThickness: 4 }).setOrigin(0.5).setDepth(102));
-    add(this.add.text(cx, 214, lv.subtitle, { fontFamily: FONT, fontSize: '16px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 3, align: 'center', wordWrap: { width: 560 } }).setOrigin(0.5, 0).setDepth(102));
+    add(this.add.text(cx, 206, lv.subtitle, { fontFamily: FONT, fontSize: '16px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 3, align: 'center', wordWrap: { width: 560 } }).setOrigin(0.5, 0).setDepth(102));
+    const pre = predomOf(lv.id);
+    if (pre.length) add(this.add.text(cx, 236, `Resistencias predominantes: ${pre.map((k) => DTYPES[k].name).join(' · ')}`, { fontFamily: FONT, fontSize: '14px', color: '#ffcc80', fontStyle: 'bold', stroke: '#2e1c0f', strokeThickness: 3 }).setOrigin(0.5, 0).setDepth(102));
     add(
       this.add
         .text(cx, 272, done ? `${'★'.repeat(st)}${'☆'.repeat(3 - st)}` : unlocked ? 'Todavía sin completar' : '🔒 Supera el nivel anterior para jugarlo', { fontFamily: EMOJI_FONT, fontSize: done ? '40px' : '20px', color: '#ffd23f', stroke: '#2e1c0f', strokeThickness: 5 })

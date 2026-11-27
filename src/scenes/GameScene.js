@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { W, H, TILE, COLS, ROWS, HUD_H, MAP_Y, PANEL_Y, PANEL_H, FONT, EMOJI_FONT, COL } from '../config.js';
 import { TOWERS, PATH_KEYS } from '../data/towers.js';
 import { ENEMIES, enemyInfo } from '../data/enemies.js';
-import { LEVELS, waveGroups, rampOf } from '../data/levels.js';
+import { LEVELS, waveGroups, rampOf, isMassive } from '../data/levels.js';
+import { DTYPES, HERO_DTYPE, NO_AIR, predomOf } from '../data/damage.js';
 import { load, save } from '../storage.js';
 import { has, gemRates, COINS_PER_KILL, pathTierUnlocked, towerUnlocked, START_LIVES, wallLives, maxSlots } from '../data/tree.js';
 import { makeButton, woodPanel, iconButton, infoIcon, hideTip, title } from '../ui.js';
@@ -33,12 +34,15 @@ export default class GameScene extends Phaser.Scene {
 
   init(data) {
     this.levelId = data.level || 1;
+    this.infernal = !!data.infernal; // modo infernal (25 rondas, más duro)
   }
 
   // ------------------------------------------------------------------ SETUP
   create() {
     this.sv = load();
-    this.level = LEVELS[this.levelId - 1];
+    const base = LEVELS[this.levelId - 1];
+    // copia del nivel: en el modo infernal llega a la ronda 25
+    this.level = base.tutorial ? base : { ...base, infernal: this.infernal, waveCount: this.infernal ? 25 : base.waveCount };
     // mundo: los niveles grandes (zoom < 1) tienen más casillas y se ven alejados con la cámara
     this.zoom = this.level.zoom || 1;
     this.WW = Math.round(W / this.zoom); // ancho del mundo en px de mundo
@@ -261,13 +265,12 @@ export default class GameScene extends Phaser.Scene {
       return false;
     };
 
-    // suelo: hierba y camino de tierra (casilla central lisa de cada tilemap, fotograma 10)
+    // suelo: textura de hierba de Pol (32x32 ampliada x2, repetida por todo el mapa) y camino de tierra encima
+    this.add.tileSprite(0, MAP_Y, this.cols * TILE, this.rows * TILE, 'grass_tile').setOrigin(0, 0).setTileScale(2).setDepth(0);
     for (let c = 0; c < this.cols; c++) {
       for (let r = 0; r < this.rows; r++) {
-        const path = this.pathTiles.has(`${c},${r}`);
-        const img = this.add.image(c * TILE, MAP_Y + r * TILE, path ? 'path' : 'grass', 10).setOrigin(0, 0).setDepth(0);
-        if (path) img.setTint(0xe9cfa0);
-        else if ((c * 7 + r * 13) % 5 === 0) img.setTint(0xeaf5df);
+        if (!this.pathTiles.has(`${c},${r}`)) continue;
+        this.add.image(c * TILE, MAP_Y + r * TILE, 'path', 10).setOrigin(0, 0).setDepth(0.5).setTint(0xe9cfa0);
       }
     }
     // borde oscuro del camino (se ve el límite entre tierra y hierba)
@@ -311,6 +314,33 @@ export default class GameScene extends Phaser.Scene {
           o.anims.setProgress(rng.frac()); // que no se muevan todos a la vez
         }
         o.setDepth(9 + y / 1000);
+      }
+    }
+
+    // hierba alta de Pol: matas sueltas y pequeños grupos en la hierba (solo decoración: se puede construir encima)
+    const tallRng = new Phaser.Math.RandomDataGenerator(['tall', String(this.levelId)]);
+    const tuft = (x, y, s) => {
+      const o = this.add.image(x, y, 'tall_grass').setOrigin(0.5, 0.92).setScale(s).setDepth(2 + y / 10000);
+      if (tallRng.frac() < 0.5) o.setFlipX(true);
+      // balanceo suave con el viento (cada mata a su ritmo)
+      this.tweens.add({ targets: o, angle: { from: -3, to: 3 }, duration: 1400 + tallRng.between(0, 900), yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: tallRng.between(0, 1200) });
+    };
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < this.rows; r++) {
+        const key = `${c},${r}`;
+        if (this.pathTiles.has(key) || this.blocked.has(key)) continue;
+        if (tallRng.frac() > 0.14) continue;
+        const n = tallRng.frac() < 0.4 ? tallRng.between(2, 3) : 1; // a veces un grupito
+        for (let k = 0; k < n; k++) {
+          const x = c * TILE + 12 + tallRng.frac() * (TILE - 24);
+          const y = MAP_Y + r * TILE + 22 + tallRng.frac() * (TILE - 26);
+          const s = 1.5 + tallRng.frac() * 0.5;
+          // que la mata entera (también la parte alta) quede fuera del camino
+          const onPath = (px, py) => this.pathTiles.has(`${Math.floor(px / TILE)},${Math.floor((py - MAP_Y) / TILE)}`);
+          const top = y - 30 * s;
+          if ([[x - 12, top], [x + 12, top], [x - 12, y], [x + 12, y]].some(([px, py]) => onPath(px, py))) continue;
+          tuft(x, y, s);
+        }
       }
     }
 
@@ -715,7 +745,7 @@ export default class GameScene extends Phaser.Scene {
   finishMove(x, y) {
     const t = this.placing.moveTower;
     if (!this.canPlaceAt(x, y)) {
-      this.floatText(x, y - 30, 'Aquí no cabe: lejos del camino y de otras defensas', '#ff9e80');
+      this.floatText(x, y - 30, 'Aquí no cabe: lejos del camino y de otros héroes', '#ff9e80');
       return;
     }
     const eng = this.movableBy(t);
@@ -789,7 +819,7 @@ export default class GameScene extends Phaser.Scene {
     }
     if (this.placeAt(pl.type, x, y)) this.cancelPlacing();
     else if (!this.canPlaceAt(x, y)) {
-      this.floatText(x, y - 30, 'Aquí no cabe: lejos del camino y de otras defensas', '#ff9e80');
+      this.floatText(x, y - 30, 'Aquí no cabe: lejos del camino y de otros héroes', '#ff9e80');
       if (pl.drag) this.cancelPlacing();
     } else this.cancelPlacing();
   }
@@ -815,7 +845,7 @@ export default class GameScene extends Phaser.Scene {
   // Llamar a la siguiente oleada (botón o barra espaciadora). Cuanto antes, más suministros de premio.
   // Suministros que da la siguiente oleada: se reciben al instante, en cuanto empieza (30 + 6 por oleada)
   waveBonus() {
-    return Math.round((20 + 4 * (this.waveNo + 1)) * 1.5);
+    return Math.round((20 + 4 * (this.waveNo + 1)) * 1.5 * (this.infernal ? 0.75 : 1));
   }
 
   // segundos que faltan para poder avanzar la siguiente oleada (mínimo 15 s desde que empezó la anterior)
@@ -1007,7 +1037,7 @@ export default class GameScene extends Phaser.Scene {
     this.moveMode = mm;
     objs.push(this.add.rectangle(0, PANEL_Y, W, H - PANEL_Y, 0x000000, 0.55).setOrigin(0, 0).setDepth(70).setInteractive()); // tapa el panel
     mm.txt = this.add
-      .text(W / 2, 110, 'MOVER DEFENSA: toca la defensa que quieras mover y luego toca su nuevo sitio', { fontFamily: FONT, fontSize: '20px', color: '#ffffff', backgroundColor: '#000000cc', padding: { x: 14, y: 8 }, align: 'center', wordWrap: { width: 900 } })
+      .text(W / 2, 110, 'MOVER HÉROE: toca al héroe que quieras mover y luego toca su nuevo sitio', { fontFamily: FONT, fontSize: '20px', color: '#ffffff', backgroundColor: '#000000cc', padding: { x: 14, y: 8 }, align: 'center', wordWrap: { width: 900 } })
       .setOrigin(0.5, 0)
       .setDepth(71);
     objs.push(mm.txt);
@@ -1033,7 +1063,7 @@ export default class GameScene extends Phaser.Scene {
       if (mm.tower && mm.orig) this.setTowerPos(mm.tower, mm.orig.x, mm.orig.y); // cambia de defensa: la anterior vuelve a su sitio
       mm.tower = best;
       mm.orig = { x: best.x, y: best.y };
-      mm.txt.setText('Ahora toca el nuevo sitio (lejos del camino y de otras defensas). Pulsa «Aceptar» para fijarla');
+      mm.txt.setText('Ahora toca el nuevo sitio (lejos del camino y de otros héroes). Pulsa «Aceptar» para fijarlo');
       return;
     }
     if (!mm.tower) return;
@@ -1079,6 +1109,7 @@ export default class GameScene extends Phaser.Scene {
     t.txt.destroy();
     t.shadow.destroy();
     t.lvTxt.destroy();
+    if (t.soulTxt) t.soulTxt.destroy();
     this.towers = this.towers.filter((x) => x !== t);
     this.selection = null;
     this.onTowersChanged();
@@ -1103,17 +1134,18 @@ export default class GameScene extends Phaser.Scene {
         o.blood = A >= 4;
         break;
       case 'elfo':
-        o.dmg = 9 * (C >= 1 ? 1.25 : 1);
-        o.interval = 0.8 / (A >= 1 ? 1.4 : 1);
-        o.range = 250 * (1 + (B >= 1 ? 0.2 : 0) + (B >= 3 ? 0.4 : 0));
+        o.dmg = 9;
+        o.interval = 0.8 / (A >= 1 ? 1.35 : 1); // Disparo rápido: +35%
+        o.range = 250 * 0.85 * (1 + (B >= 1 ? 0.2 : 0) + (B >= 3 ? 0.4 : 0)); // empieza con un 15% menos de alcance
         o.arrows = 1 + (B >= 2 ? 1 : 0);
         o.crit = B >= 3 ? 0.3 : 0; // Ojo de halcón: +30% de probabilidad de crítico (x2)
         o.density = A >= 2;
         o.dark = A >= 3;
         o.execute = A >= 4;
-        o.slow = C >= 2;
-        o.pierce = C >= 3 ? 2 : 0; // Flechas afiladas: atraviesan hasta 2 zombis más
-        o.tele = C >= 4; // Telequinesis: la flecha se curva hacia el siguiente enemigo
+        o.slow = C >= 2; // Flechas gélidas
+        // penetración: Flechas afiladas (C1) +1, Magia oscura (A3) +1, Punta de acero (C4) +3
+        o.pierce = (C >= 1 ? 1 : 0) + (A >= 3 ? 1 : 0) + (C >= 4 ? 3 : 0);
+        o.tele = C >= 3; // Telequinesis: la flecha se curva hacia el siguiente enemigo
         if (this.buffs.rain > 0) o.interval /= 2; // Lluvia de flechas: los Elfos disparan el doble de rápido
         break;
       case 'alquimista':
@@ -1191,7 +1223,7 @@ export default class GameScene extends Phaser.Scene {
         line = `Daño ${s.dmg.toFixed(0)} · ${(1 / s.interval).toFixed(1)}/s\nAlcance ${Math.round(s.range)}`;
         break;
     }
-    return `${def.emoji} ${def.name}  (+${this.total(t)})\n${line}`;
+    return `${def.emoji} ${def.name}${NO_AIR.has(t.type) ? '' : ' ✈'}  (+${this.total(t)})\n${line}`; // ✈ = antiaéreo
   }
 
   // ------------------------------------------------------------- HABILIDADES
@@ -1284,6 +1316,10 @@ export default class GameScene extends Phaser.Scene {
     this.waveNo += 1;
     this.ntOnWaveStart();
     const groups = waveGroups(this.level, this.waveNo);
+    if (isMassive(this.level, this.waveNo)) this.notice('⚠ ¡OLEADA MASIVA! ⚠', '#ff5252', 3.5);
+    if (this.waveNo === this.level.waveCount && !this.level.tutorial) this.notice('☠ OLEADA FINAL: llegan los enemigos maestro', '#ffd23f', 3.5);
+    // modo infernal: las primeras rondas son más rápidas (menos tiempo para juntar suministros)
+    const fast = this.infernal && this.waveNo <= 8 ? 0.6 : 1;
     let t = 0;
     const nr = this.routes.length;
     for (const g of groups) {
@@ -1293,11 +1329,11 @@ export default class GameScene extends Phaser.Scene {
         const lanes = this.lanesFor(k);
         // con bifurcaciones, cada tanda elige uno de los recorridos (reparto al azar y equilibrado)
         const route = nr > 1 ? Math.floor(Math.random() * nr) : 0;
-        for (let j = 0; j < k; j++) this.queue.push({ at: t + j * 0.05, type: g.type, lane: ENEMIES[g.type].boss ? 0 : lanes[j], route });
+        for (let j = 0; j < k; j++) this.queue.push({ at: t + j * 0.05, type: g.type, lane: ENEMIES[g.type].boss ? 0 : lanes[j], route, hpMul: g.hpMul || 1 });
         i += k;
-        t += g.gap * (1 + 0.25 * (k - 1));
+        t += g.gap * (1 + 0.25 * (k - 1)) * fast;
       }
-      t += 1.5;
+      t += g.massive ? 0.8 : 1.5 * fast; // en la oleada masiva los grupos llegan uno detrás de otro
     }
     this.queue.sort((a, b) => a.at - b.at);
     this.queueT = 0;
@@ -1322,9 +1358,14 @@ export default class GameScene extends Phaser.Scene {
     else {
       // en los niveles con "ramp" la vida extra del nivel crece a lo largo de las oleadas
       const hs = 1 + ((this.level.hpScale || 1) - 1) * rampOf(this.level, this.waveNo);
-      hpMult = def.mini ? (1 + 0.1 * k) * hs : (1 + 0.15 * k + 0.011 * k * k) * hs;
+      // a partir del nivel 7 la vida crece más entre rondas
+      const grow = this.levelId >= 7 ? 1 + 0.2 * k + 0.016 * k * k : 1 + 0.15 * k + 0.011 * k * k;
+      hpMult = def.mini ? (1 + 0.1 * k) * hs : grow * hs;
     }
-    const spMult = def.boss || def.mini ? 1 : Math.min(1.25, 1 + 0.02 * k);
+    hpMult *= opts.hpMul || 1;
+    if (this.infernal) hpMult *= 1.35;
+    let spMult = def.boss || def.mini ? 1 : Math.min(1.25, 1 + 0.02 * k);
+    if (this.infernal && this.waveNo <= 8 && !def.boss) spMult *= 1.15;
     const dist0 = opts.dist || 0;
     const p = this.posAt(dist0, lane, route);
     const e = {
@@ -1355,15 +1396,81 @@ export default class GameScene extends Phaser.Scene {
       burnExplode: null,
       corrodeUntil: 0,
       dead: false,
+      pushes: 0,
     };
+    this.applyResists(e, k);
+    // Pesado: a partir del nivel 5 es muy común (solo se le puede empujar 3 veces)
+    e.heavy = !!def.heavy || (!def.flying && this.levelId >= 5 && !this.level.tutorial && Math.random() < 0.35);
     const art = def.art;
-    e.shadow = this.add.image(p.x, p.y + 14, 'shadow').setScale(art.shadow).setAlpha(0.5).setDepth(10);
-    e.txt = this.add.sprite(p.x, p.y + 6, art.key).setOrigin(0.5, 0.58).setScale(art.scale).setTint(art.tint).setDepth(10);
+    e.flyY = def.flying ? -30 : 0; // los voladores se dibujan por encima de su sombra
+    e.shadow = this.add.image(p.x, p.y + 14, 'shadow').setScale(art.shadow).setAlpha(def.flying ? 0.35 : 0.5).setDepth(10);
+    e.txt = this.add.sprite(p.x, p.y + 6 + e.flyY, art.key).setOrigin(0.5, 0.58).setScale(art.scale).setTint(art.tint).setDepth(10);
     e.txt.play(art.key);
     e.txt.anims.setProgress(Math.random());
     e.flash = 0;
     this.enemies.push(e);
     this.discover(type);
+  }
+
+  // Resistencias del zombi en partida (e.res = {tipo: 0..0.85}):
+  // las de su ficha + resistencia normal que crece con las rondas y los niveles + resistencia predominante del nivel.
+  applyResists(e, k) {
+    const def = e.def;
+    const r = {};
+    if (def.resist) r.normal = def.resist;
+    if (def.mres) r.magico = def.mres;
+    for (const [t, v] of Object.entries(def.res || {})) r[t] = Math.max(r[t] || 0, v);
+    if (!this.level.tutorial) {
+      // resistencia normal de todos los zombis: sube con las rondas y con los niveles
+      r.normal = (r.normal || 0) + Math.min(0.3, 0.008 * (this.levelId - 1) + 0.007 * k + (this.infernal ? 0.05 : 0));
+      const pre = predomOf(this.levelId);
+      if (pre.length) {
+        if (def.boss || def.mini) {
+          // jefes y minijefes: resistencias extra (en menor medida) a los tipos del nivel
+          for (const t of pre) r[t] = (r[t] || 0) + (this.infernal ? 0.25 : 0.15);
+        } else {
+          const chance = 0.25 + 0.3 * rampOf(this.level, this.waveNo) + (this.infernal ? 0.15 : 0);
+          if (Math.random() < chance) {
+            const t = pre[Math.floor(Math.random() * pre.length)];
+            r[t] = Math.max(r[t] || 0, 0.5) + (this.infernal ? 0.15 : 0); // infernal: más de su resistencia principal
+            e.predom = t;
+            if (this.infernal) {
+              // y una resistencia predominante extra
+              const extra = pre.find((q) => q !== t) || ['normal', 'magico', 'fuego', 'oscuridad'].find((q) => q !== t);
+              r[extra] = Math.max(r[extra] || 0, 0.3);
+            }
+          }
+        }
+      }
+      // los zombis con resistencia ganan un extra en el modo infernal
+      if (this.infernal) for (const t of Object.keys(r)) if (t !== 'normal' && r[t] > 0) r[t] += 0.1;
+    }
+    for (const t of Object.keys(r)) r[t] = Math.min(0.85, r[t]);
+    e.res = r;
+  }
+
+  // ¿Puede este héroe (o su torreta, trampa, poción...) dañar a este zombi? Los voladores solo reciben daño antiaéreo.
+  canHit(src, e) {
+    return !(e.def.flying && src && NO_AIR.has(src.type));
+  }
+
+  // Empujar a un zombi: los jefes, minijefes y los inmunes no se empujan; los pesados, como mucho 3 veces
+  canPush(e) {
+    if (e.dead || e.def.boss || e.def.mini || e.def.noPush) return false;
+    if (e.heavy && e.pushes >= 3) return false;
+    e.pushes += 1;
+    return true;
+  }
+
+  // Aviso grande en el centro del mapa (oleada masiva, voladores...)
+  notice(text, color = '#ffd23f', dur = 3) {
+    const tx = this.add
+      .text(W / 2, MAP_Y + 150, text, { fontFamily: EMOJI_FONT, fontSize: '30px', color, fontStyle: 'bold', align: 'center', stroke: '#1b1209', strokeThickness: 6, wordWrap: { width: 900 } })
+      .setOrigin(0.5)
+      .setDepth(70)
+      .setScale(0.6);
+    this.tweens.add({ targets: tx, scale: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: tx, alpha: 0, delay: dur * 1000, duration: 500, onComplete: () => tx.destroy() });
   }
 
   // ------------------------------------------------- ENEMIGOS DESCUBIERTOS
@@ -1377,6 +1484,10 @@ export default class GameScene extends Phaser.Scene {
       }
       this.alerts = [];
       this.alertViews = [];
+    }
+    if (ENEMIES[type].flying && this.tut && !this._flyTip) {
+      this._flyTip = true;
+      this.notice('¡VOLADORES! El Bárbaro no llega hasta ellos.\nSolo los héroes ANTIAÉREOS (como el Elfo) pueden atacarlos.', '#9be4ff', 6);
     }
     if (this.seen.has(type)) return;
     this.seen.add(type);
@@ -1579,7 +1690,7 @@ export default class GameScene extends Phaser.Scene {
       this.queueT += dt;
       while (this.queue.length && this.queue[0].at <= this.queueT) {
         const q = this.queue.shift();
-        this.spawnEnemy(q.type, q.lane, q.route || 0);
+        this.spawnEnemy(q.type, q.lane, q.route || 0, { hpMul: q.hpMul });
       }
       if (!this.queue.length) this.queueT = 0;
     }
@@ -1622,7 +1733,7 @@ export default class GameScene extends Phaser.Scene {
       case 'hp':
         return (a, b) => b.hp - a.hp || b.dist - a.dist;
       case 'armor':
-        return (a, b) => (b.def.resist || 0) - (a.def.resist || 0) || b.dist - a.dist;
+        return (a, b) => (b.res.normal || 0) - (a.res.normal || 0) || b.dist - a.dist;
       default:
         return (a, b) => b.dist - a.dist;
     }
@@ -1632,7 +1743,7 @@ export default class GameScene extends Phaser.Scene {
     const cmp = this.prioCmp(t);
     let best = null;
     for (const e of this.enemies) {
-      if (e.dead || dist2(t.x, t.y, e.x, e.y) > range) continue;
+      if (e.dead || dist2(t.x, t.y, e.x, e.y) > range || !this.canHit(t, e)) continue;
       if (!best || cmp(e, best) < 0) best = e;
     }
     return best;
@@ -1640,7 +1751,7 @@ export default class GameScene extends Phaser.Scene {
 
   // enemigos en rango, ordenados según la prioridad de la defensa (por defecto, del más adelantado al más atrasado)
   targetsIn(t, range) {
-    return this.enemies.filter((e) => !e.dead && dist2(t.x, t.y, e.x, e.y) <= range).sort(this.prioCmp(t));
+    return this.enemies.filter((e) => !e.dead && dist2(t.x, t.y, e.x, e.y) <= range && this.canHit(t, e)).sort(this.prioCmp(t));
   }
 
   // DPS teórico contra un solo objetivo (sin críticos ni mejoras de zona); orientativo
@@ -1695,7 +1806,7 @@ export default class GameScene extends Phaser.Scene {
         const inR = this.targetsIn(t, st.range);
         if (inR.length) {
           t.zapT = 0;
-          this.lightning(t, inR[0], st.dmg * 1.2);
+          this.lightning(t, inR[0], st.dmg * 2.4); // el doble que antes
         }
       }
     }
@@ -1743,7 +1854,7 @@ export default class GameScene extends Phaser.Scene {
             if ((e.def.boss || e.def.mini) && s.boss5) hit *= 4; // Conquistador: x4
             this.damage(e, hit, { src: t });
             // el empujón solo afecta a UN zombi por golpe (el objetivo principal)
-            if (s.knock && e === target && !e.def.boss && !e.def.mini && !e.dead) e.dist = Math.max(0, e.dist - 15.4); // empuja un 30% menos que antes (22)
+            if (s.knock && e === target && !e.dead && this.canPush(e)) e.dist = Math.max(0, e.dist - 15.4); // empuja un 30% menos que antes (22)
           }
           this.effects.push({ kind: 'cone', x: t.x, y: t.y, ang, range: s.range, full, life: 0.18, max: 0.18, multi });
         };
@@ -1771,7 +1882,7 @@ export default class GameScene extends Phaser.Scene {
             ly: target.y,
             speed: 650,
             dmg: s.dmg * mult,
-            ignoreResist: s.dark,
+            dtype: s.dark ? 'oscuridad' : 'normal', // Magia oscura: daño de oscuridad (ya no ignora las resistencias)
             crit: s.crit,
             dark: s.dark,
             execute: s.execute,
@@ -1880,7 +1991,7 @@ export default class GameScene extends Phaser.Scene {
 
   updateProjectiles(dt) {
     for (const p of this.projectiles) {
-      if (p.kind === 'rock' || p.kind === 'ghost' || p.kind === 'wisp') {
+      if (p.kind === 'rock' || p.kind === 'ghost' || p.kind === 'wisp' || p.kind === 'blood') {
         this.ntProjectile(p, dt);
         continue;
       }
@@ -1959,7 +2070,7 @@ export default class GameScene extends Phaser.Scene {
         p.trail.forEach((q) => (q.life -= dt));
         if (k >= 1) {
           p.dead = true;
-          if (p.target && !p.target.dead) this.damage(p.target, p.dmg, { src: p.src });
+          if (p.target && !p.target.dead) this.damage(p.target, p.dmg, { src: p.src, dtype: 'luz' });
           this.addRing(p.x, p.y, 40, 0xb388ff, 0.45);
           playFx(this, 'fx_explosion2', p.x, p.y, 0.6, 27);
         }
@@ -1981,7 +2092,7 @@ export default class GameScene extends Phaser.Scene {
       }
       if (p.kind === 'orb' && p.nova) {
         // Supernova: aura de luz con daño continuo mientras vuela
-        for (const e of this.enemiesNear(p.x, p.y, 60)) this.damage(e, p.dmg * 4.5 * dt, { dot: true, src: p.src }); // x3
+        for (const e of this.enemiesNear(p.x, p.y, 60)) this.damage(e, p.dmg * 4.5 * dt, { dot: true, src: p.src, dtype: 'luz' }); // x3
       }
       if (p.kind === 'arrow' && p.free) {
         // vuelo libre tras atravesar: recto, golpeando a lo que se cruce, hasta salir del mapa
@@ -2007,7 +2118,7 @@ export default class GameScene extends Phaser.Scene {
       let ty;
       if (p.target && !p.target.dead) {
         tx = p.target.x;
-        ty = p.target.y;
+        ty = p.target.y + (p.target.flyY || 0); // a los voladores se les apunta arriba
         p.lx = tx;
         p.ly = ty;
       } else {
@@ -2127,7 +2238,7 @@ export default class GameScene extends Phaser.Scene {
     }
     if (p.dark && (e.def.boss || e.def.mini)) dmg *= 2;
     if (p.slow) this.applySlow(e, 0.25, 1.5);
-    this.damage(e, dmg, { ignoreResist: p.ignoreResist, src: p.src });
+    this.damage(e, dmg, { dtype: p.dtype, src: p.src });
   }
 
   orbHit(p, x, y) {
@@ -2136,7 +2247,7 @@ export default class GameScene extends Phaser.Scene {
     if (p.nova) {
       this.addRing(x, y, p.blast, 0xfff2a8, 0.5);
       // aura de luz que se queda un momento haciendo daño continuo
-      this.zones.push({ x, y, r: p.blast * 1.3, life: 2.5, tick: 0, dps: p.dmg * 2.4, aura: true, src: p.src }); // x3
+      this.zones.push({ x, y, r: p.blast * 1.3, life: 2.5, tick: 0, dps: p.dmg * 2.4, aura: true, dtype: 'luz', src: p.src }); // x3
     }
     if (p.echo) {
       // Eco arcano: el hechizo se fragmenta en abanico hacia delante (en la dirección en que iba); los fragmentos atraviesan a todos los zombis
@@ -2164,21 +2275,21 @@ export default class GameScene extends Phaser.Scene {
     let from = { x: t.x, y: t.y };
     let cur = first;
     let delay = 0;
-    for (let hop = 0; hop < 8 && cur; hop++) {
+    for (let hop = 0; hop < 14 && cur; hop++) {
       const target = cur;
       const a = from;
       hit.add(target);
       this.timers.push({
         t: delay,
         fn: () => {
-          this.effects.push({ kind: 'bolt', x: a.x, y: a.y, x2: target.x, y2: target.y, life: 0.3, max: 0.3 });
-          this.damage(target, dmg, { src: t });
+          this.effects.push({ kind: 'bolt', x: a.x, y: a.y, x2: target.x, y2: target.y, life: 0.32, max: 0.32, color: 0x81d4fa, jag: true, seed: Math.random() * 1000 });
+          this.damage(target, dmg, { src: t, dtype: 'electrico' });
         },
       });
-      delay += 0.07;
+      delay += 0.06;
       from = { x: target.x, y: target.y };
       let best = null;
-      let bd = 200;
+      let bd = 235;
       for (const o of this.enemies) {
         if (o.dead || hit.has(o)) continue;
         const d2 = dist2(target.x, target.y, o.x, o.y);
@@ -2203,7 +2314,7 @@ export default class GameScene extends Phaser.Scene {
       }
       if (opts.slow) this.applySlow(e, 0.25, 8); // Orbe gélido: 8 s, no acumulable
       const fireMul = (opts.burn || opts.fire) && e.def.noFire ? 0.4 : 1; // los ignífugos aguantan el fuego
-      this.damage(e, dmg * fireMul, { src: opts.src });
+      this.damage(e, dmg * fireMul, { src: opts.src, dtype: opts.burn || opts.fire ? 'fuego' : opts.dtype });
     }
   }
 
@@ -2223,7 +2334,7 @@ export default class GameScene extends Phaser.Scene {
             e.poisonSrc = z.src;
           }
           if (z.gold) e.goldUntil = this.now + 6; // zombi dorado del Alquimista: 6 s (antes 10)
-          this.damage(e, z.dps * 0.5, { src: z.src });
+          this.damage(e, z.dps * 0.5, { src: z.src, dtype: z.dtype });
         }
       }
     }
@@ -2240,7 +2351,7 @@ export default class GameScene extends Phaser.Scene {
         e.burnExplode = null;
       }
       if (e.poisonUntil > this.now) {
-        this.damage(e, e.poisonDps * dt, { ignoreResist: true, dot: true, src: e.poisonSrc });
+        this.damage(e, e.poisonDps * dt, { dot: true, src: e.poisonSrc, dtype: 'veneno' });
         // Epidemia: los envenenados contagian a los cercanos (no acumulable)
         if (!e.dead && e.poisonSpread) {
           e.spreadT -= dt;
@@ -2257,7 +2368,7 @@ export default class GameScene extends Phaser.Scene {
           }
         }
       }
-      if (!e.dead && e.burnUntil > this.now) this.damage(e, e.burnDps * dt, { dot: true, src: e.burnSrc });
+      if (!e.dead && e.burnUntil > this.now) this.damage(e, e.burnDps * dt, { dot: true, src: e.burnSrc, dtype: 'fuego' }); // quemadura
       if (!e.dead) this.ntEnemyTick(e, dt);
       if (e.dead) continue;
       let sp = e.def.speed * e.spMult;
@@ -2278,7 +2389,7 @@ export default class GameScene extends Phaser.Scene {
       if (Math.abs(p.x - e.x) > 0.01) e.txt.setFlipX(p.x < e.x);
       e.x = p.x;
       e.y = p.y;
-      e.txt.setPosition(e.x, e.y + 6).setDepth(10 + e.y / 1000);
+      e.txt.setPosition(e.x, e.y + 6 + (e.flyY || 0) + (e.flyY ? Math.sin(e.age * 3) * 3 : 0)).setDepth(e.flyY ? 25 + e.y / 1000 : 10 + e.y / 1000);
       e.shadow.setPosition(e.x, e.y + 14);
       if (e.flash > 0) e.flash -= dt;
       e.txt.setAlpha(e.flash > 0 ? 0.55 : 1);
@@ -2318,17 +2429,19 @@ export default class GameScene extends Phaser.Scene {
 
   damage(e, amount, opts = {}) {
     if (e.dead) return;
+    // los voladores solo reciben daño de los héroes antiaéreos
+    if (!this.canHit(opts.src, e)) return;
     let a = amount;
-    // fuentes de daño mágico: Mago, Nigromante y Druida
-    const magic = !!opts.src && (opts.src.type === 'mago' || opts.src.type === 'nigromante' || opts.src.type === 'druida');
-    // la armadura (resistencia física) la ignoran la magia, el veneno y el fuego (todo daño continuo) y las habilidades que lo indican
-    if (e.def.resist && !opts.ignoreResist && !opts.dot && !magic) a *= 1 - e.def.resist * (opts.resMul ?? 1);
+    // tipo de daño: el que indica el ataque o el del héroe que lo hace
+    const dt = opts.dtype || (opts.src && HERO_DTYPE[opts.src.type]) || 'normal';
+    if (!opts.ignoreResist) a *= 1 - (e.res[dt] || 0) * (dt === 'normal' ? opts.resMul ?? 1 : 1);
+    // luz y oscuridad: cada una hace más daño a los que resisten la otra
+    if (dt === 'luz' && (e.res.oscuridad || 0) > 0) a *= 1.5;
+    if (dt === 'oscuridad' && (e.res.luz || 0) > 0) a *= 1.5;
     if (e.corrodeUntil > this.now) a *= 1.2;
     if (e.markUntil > this.now) a *= e.markMult || 1; // marcado (Empalamiento, Juicio divino)
     if (e.shredUntil > this.now) a *= 1 + (e.shredAmt || 0); // resistencia reducida (maldición, Lanza del rey, oro frágil)
     if (opts.turret) e.turretHit = opts.src;
-    // resistencia mágica: reduce el daño de las fuentes mágicas (Mago, Nigromante, Druida)
-    if (e.def.mres && magic) a *= 1 - e.def.mres;
     // contador de daño por defensa (no cuenta el daño sobrante de una baja)
     if (opts.src) opts.src.dmgDealt += Math.min(a, Math.max(0, e.hp));
     e.hp -= a;
@@ -2366,6 +2479,7 @@ export default class GameScene extends Phaser.Scene {
     const earlyMul = this.levelId <= 3 ? 1.5 : 1; // primeros niveles: +50% de suministros por zombi abatido
     const baseReward = Math.max(1, Math.round((e.def.reward * 0.75 * earlyMul) / (1 + 0.04 * this.waveNo)));
     let sup = e.summoned ? Math.ceil(baseReward * 0.3) : baseReward; // los refuerzos invocados dan poco
+    if (this.infernal) sup *= 0.8;
     if (golden) {
       // zombi dorado: +30% de suministros respecto al mismo zombi sin el efecto (no acumulable)
       const gm = e.goldMult || 1.3;
@@ -2405,6 +2519,7 @@ export default class GameScene extends Phaser.Scene {
     this.run.coins = Math.round((this.run.coinKills + this.run.gemCoins) * COINS_PER_KILL);
     this.run.tutorialBonus = this.levelId === 1 ? 30 : 0; // el tutorial siempre da +30 monedas (ganes o pierdas) para empezar a comprar mejoras
     this.run.coins += this.run.tutorialBonus;
+    if (this.infernal) this.run.coins = 0; // el modo infernal no da oro (su premio son los cerebros)
     sv.coins += this.run.coins;
     let extra = '';
     // estrellas: 3 = ninguna vida perdida, 2 = perdiste algo (hasta 2/3 de la vida), 1 = perdiste más de 2/3
@@ -2413,12 +2528,20 @@ export default class GameScene extends Phaser.Scene {
       const lost = this.maxLives - this.lives;
       stars = lost <= 0 ? 3 : lost <= (this.maxLives * 2) / 3 ? 2 : 1;
       sv.stars = sv.stars || {};
-      if (stars > (sv.stars[this.levelId] || 0)) {
+      if (!this.infernal && stars > (sv.stars[this.levelId] || 0)) {
         sv.stars[this.levelId] = stars;
         extra += `\n⭐ Nueva mejor puntuación: ${'★'.repeat(stars)}`;
       }
     }
-    if (win && !sv.cleared[this.levelId]) {
+    if (win && this.infernal) {
+      sv.infernal = sv.infernal || {};
+      if (!sv.infernal[this.levelId]) {
+        sv.brains += 2; // primera vez en infernal: 2 cerebros de golpe
+        extra += '\n🔥 ¡Modo infernal superado!\n🧠 +2 cerebros (primera vez)';
+      }
+      sv.infernal[this.levelId] = Math.max(sv.infernal[this.levelId] || 0, stars);
+    }
+    if (win && !this.infernal && !sv.cleared[this.levelId]) {
       sv.cleared[this.levelId] = true;
       sv.ingots += 1;
       extra += '\n🥇 +1 lingote de oro (primera vez)';
@@ -2432,6 +2555,7 @@ export default class GameScene extends Phaser.Scene {
     this.skillBtns = [];
     const g = this.run;
     const text =
+      (this.infernal ? '🔥 MODO INFERNAL 🔥\n' : '') +
       (win ? `🏆 ¡VICTORIA!  ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}` : '💀 DERROTA') +
       (win ? `\n(vidas perdidas: ${this.maxLives - this.lives} de ${this.maxLives})` : '') +
       `\n⏱ Tiempo de partida: ${this.fmtTime(this.playTime)}` +
@@ -2446,7 +2570,7 @@ export default class GameScene extends Phaser.Scene {
       .text(W / 2, 250, text, { fontFamily: EMOJI_FONT, fontSize: '27px', color: '#ffffff', align: 'center', lineSpacing: 6, stroke: '#3b1f10', strokeThickness: 5 })
       .setOrigin(0.5)
       .setDepth(101);
-    makeButton(this, W / 2 - 330, 480, 200, 70, '🔁 Reintentar', () => this.scene.restart({ level: this.levelId }), { depth: 102, fontSize: 24 });
+    makeButton(this, W / 2 - 330, 480, 200, 70, '🔁 Reintentar', () => this.scene.restart({ level: this.levelId, infernal: this.infernal }), { depth: 102, fontSize: 24 });
     makeButton(this, W / 2 - 100, 480, 200, 70, '🌳 Árbol', () => this.scene.start('Tree'), { depth: 102, fontSize: 24, fill: 0x6c3483 });
     makeButton(this, W / 2 + 130, 480, 200, 70, 'Menú', () => this.scene.start('Menu'), { depth: 102, fontSize: 24 });
   }
@@ -2505,13 +2629,13 @@ export default class GameScene extends Phaser.Scene {
       case 'place_barb':
         return '1/2 · Coloca un Bárbaro 🪓: arrástralo desde la izquierda al mapa (o pulsa 1 y haz clic)';
       case 'place_elf':
-        return '2/2 · Ahora coloca el Elfo 🏹 (casilla 2): ataca de lejos. Combinar defensas es la clave';
+        return '2/2 · Ahora coloca el Elfo 🏹 (casilla 2): ataca de lejos. Combinar héroes es la clave';
       case 'call_wave':
-        return 'Cuando estés listo, pulsa «Siguiente oleada» (o la barra espaciadora). Tú decides cuándo llega cada oleada. Si no ves el botón, toca «◀ Defensas»';
+        return 'Cuando estés listo, pulsa «Siguiente oleada» (o la barra espaciadora). Tú decides cuándo llega cada oleada. Si no ves el botón, toca «◀ Héroes»';
       case 'speed':
-        return 'Puedes acelerar la partida con el botón «Velocidad» (o con la tecla F). Pulsa para x2 y vuelve a x1 cuando quieras. Si no ves el botón, toca «◀ Defensas»';
+        return 'Puedes acelerar la partida con el botón «Velocidad» (o con la tecla F). Pulsa para x2 y vuelve a x1 cuando quieras. Si no ves el botón, toca «◀ Héroes»';
       case 'priority':
-        return sel ? '🎯 En «Prioridad» eliges a quién ataca primero: Primero, Último, Más vida o Armados. Pulsa una' : 'Toca una de tus defensas: verás su ficha, sus mejoras y su prioridad de ataque';
+        return sel ? '🎯 En «Prioridad» eliges a quién ataca primero: Primero, Último, Más vida o Armados. Pulsa una' : 'Toca a uno de tus héroes: verás su ficha, sus mejoras y su prioridad de ataque';
       case 'upgrade':
         return 'Mejora al Bárbaro: selecciónalo, toca una mejora y después CONFIRMAR. En el tutorial tiene todas, a mitad de precio';
       case 'skill_buy':
@@ -2519,7 +2643,7 @@ export default class GameScene extends Phaser.Scene {
       case 'skill_use':
         return '🎺 ¡Usa la habilidad! Pulsa el botón morado de la derecha. Cada habilidad tiene un tiempo de recarga' + (this.waveRunning ? '' : ' (llama a la siguiente oleada para tener zombis)');
       case 'sell':
-        return 'Vender: selecciona una defensa y pulsa «Vender» para recuperar parte de su coste. Prueba con una que te sobre (pon otra y véndela)';
+        return 'Vender: selecciona un héroe y pulsa «Vender» para recuperar parte de su coste. Prueba con uno que te sobre (pon otro y véndelo)';
       default:
         return this.now - (t.doneAt || 0) < 9 ? '¡Tutorial completado! En los siguientes niveles tienes el botón «Oleadas automáticas» para encadenar las oleadas' : '';
     }
@@ -2717,13 +2841,13 @@ export default class GameScene extends Phaser.Scene {
     }
     // Taller móvil (Ingeniero C1): botón para mover una defensa (una vez por oleada)
     if (t.type === 'ingeniero' && t.ups.C >= 1) {
-      const mb = makeButton(this, 1032, y0, 96, 60, (t.moveCharges || 0) > 0 ? 'Mover\ndefensa' : 'Mover\n(próx. oleada)', () => this.enterMoveMode(t), { fontSize: 14, fill: 0x2f5f8a, depth: 42 });
+      const mb = makeButton(this, 1032, y0, 96, 60, (t.moveCharges || 0) > 0 ? 'Mover\nhéroe' : 'Mover\n(próx. oleada)', () => this.enterMoveMode(t), { fontSize: 14, fill: 0x2f5f8a, depth: 42 });
       mb.setEnabled((t.moveCharges || 0) > 0);
       add(mb);
     }
     // volver a ver las defensas disponibles (con más de 4 defensas, el panel de selección necesita todo el espacio)
     add(
-      makeButton(this, 944, y0 + BH - 40, 84, 40, '◀ Defensas', () => {
+      makeButton(this, 944, y0 + BH - 40, 84, 40, '◀ Héroes', () => {
         this.selection = null;
         this.panelDirty = true;
       }, { fontSize: 13, fill: 0x5b4636, depth: 42 })
@@ -2793,7 +2917,7 @@ export default class GameScene extends Phaser.Scene {
     this.txtSupplies.setText(`${Math.floor(this.supplies)}`);
     const hw = Math.max(100, 54 + Math.max(this.txtLives.width, this.txtSupplies.width) + 14);
     if (this.hudBox.width !== hw) this.hudBox.setSize(hw, 82);
-    this.txtWave.setText(`Oleada ${this.waveNo}/${this.level.waveCount}`);
+    this.txtWave.setText(`${this.infernal ? '🔥 ' : ''}Oleada ${this.waveNo}/${this.level.waveCount}`);
     this.txtTime.setText(this.fmtTime(this.playTime));
     const buffs = [];
     if (this.buffs.horn > 0) buffs.push(`🎺 ${Math.ceil(this.buffs.horn)}s`);
@@ -2861,6 +2985,9 @@ export default class GameScene extends Phaser.Scene {
     for (const t of this.towers) {
       const cols = [];
       if (this.buffs.horn > 0) cols.push(0xffb300);
+      if (t.ascUntil > this.now) cols.push(0xffd700, 0xfffde7, 0xffd700); // Ascensión: oro y luz
+      const ascScale = (t.art.scale || 1) * (t.ascUntil > this.now ? 1.1 : 1);
+      if (Math.abs(t.txt.scaleX - ascScale) > 0.001) t.txt.setScale(ascScale);
       if (t.bloodUntil > this.now) cols.push(0xd50000); // Sed de sangre: partículas rojas
       if (this.buffs.rain > 0 && t.type === 'elfo') cols.push(0x66bb6a); // Lluvia de flechas
       if (t.auraSpeed > 1.001) cols.push(0x4fc3f7);
@@ -3051,6 +3178,25 @@ export default class GameScene extends Phaser.Scene {
       } else if (f.kind === 'ring') {
         a.lineStyle(4, f.color, k);
         a.strokeCircle(f.x, f.y, f.r * (1 - 0.3 * k));
+      } else if (f.kind === 'bolt' && f.jag) {
+        // rayo eléctrico: zigzag que cambia cada fotograma, con halo
+        const n = 7;
+        const dx = f.x2 - f.x, dy = f.y2 - f.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const px = -dy / len, py = dx / len;
+        const pts = [[f.x, f.y]];
+        for (let i = 1; i < n; i++) {
+          const off = (Math.random() - 0.5) * Math.min(26, len * 0.25);
+          pts.push([f.x + (dx * i) / n + px * off, f.y + (dy * i) / n + py * off]);
+        }
+        pts.push([f.x2, f.y2]);
+        for (const [w, col, al] of [[9, f.color || 0x81d4fa, 0.25 * k], [4, f.color || 0x81d4fa, k], [1.5, 0xffffff, k]]) {
+          a.lineStyle(w, col, al);
+          a.beginPath();
+          a.moveTo(pts[0][0], pts[0][1]);
+          for (let i = 1; i < pts.length; i++) a.lineTo(pts[i][0], pts[i][1]);
+          a.strokePath();
+        }
       } else if (f.kind === 'bolt') {
         a.lineStyle(4, f.color || 0xfff176, k);
         a.lineBetween(f.x, f.y, f.x2, f.y2);

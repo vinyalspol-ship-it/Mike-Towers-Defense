@@ -3,10 +3,11 @@
 // Los textos y costes están en src/data/towers2.js.
 import { W, MAP_Y, PANEL_Y } from './config.js';
 import { playFx } from './art.js';
+import { DTYPES } from './data/damage.js';
 
 const D = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 // posición de las torretas de ballesta respecto al Ingeniero
-const TURRET_POS = [[-50, 12], [50, 12], [0, -58], [0, 50]]; // separadas del Ingeniero para no solaparse con su figura
+const TURRET_POS = [[0, 50], [-50, 12], [50, 12]]; // 1ª abajo, 2ª y 3ª a los lados (arriba queda vacío); separadas del Ingeniero
 export const NEW_TYPES = ['lancero', 'monje', 'ingeniero', 'asedio', 'midas', 'nigromante', 'druida'];
 
 export const NewTowers = {
@@ -16,8 +17,8 @@ export const NewTowers = {
     const o = {};
     switch (t.type) {
       case 'lancero':
-        o.dmg = 20;
-        o.interval = 1.1;
+        o.dmg = 80;
+        o.interval = 3;
         o.range = 135 * (A >= 1 ? 1.2 : 1);
         o.reach = o.range * (B >= 1 ? 2 : 1); // Jabalinas: llega el doble de lejos con el mismo rango
         o.anchor = A >= 2;
@@ -38,9 +39,9 @@ export const NewTowers = {
         o.fervor = A >= 1;
         o.crown = A >= 2;
         o.sanct = A >= 3;
-        o.ascend = A >= 4;
+        o.judgement = A >= 4; // Juicio divino: automático cada 30 s
         o.punish = B >= 1;
-        o.tithe = B >= 2;
+        o.tithe = B >= 2; // Diezmo de caridad
         o.mercy = B >= 3;
         o.silence = C >= 1;
         o.stunDur = C >= 2 ? 2 : 0.5;
@@ -48,14 +49,14 @@ export const NewTowers = {
         o.plague = C >= 4;
         break;
       case 'ingeniero':
-        o.dmg = 6;
+        o.dmg = 12;
         o.interval = 1.3;
         o.range = 140;
         o.traps = A >= 1 ? (A >= 3 ? 6 : 3) : 0; // cepos (aturden 5 s)
         o.mines = A >= 2 ? 3 : 0; // Minas: 3 minas que se reponen 6 s después de explotar
         o.rearm = A >= 3;
         o.cross = A >= 4;
-        o.turrets = 1 + (B >= 1 ? 1 : 0) + (B >= 2 ? 2 : 0); // empieza con 1 torreta; nivel 1: +1; Batería de torretas: +2 (4)
+        o.turrets = (B >= 1 ? 1 : 0) + (B >= 2 ? 2 : 0); // ya no empieza con torreta: nivel 1 = 1 torreta; Batería = +2 (3 en total)
         o.turretFx = B >= 3; // Torretas especiales
         o.mover = C >= 1; // Taller móvil
         o.gear = C >= 2; // Engranaje
@@ -63,14 +64,14 @@ export const NewTowers = {
         o.golem = C >= 4;
         break;
       case 'asedio':
-        o.dmg = 42 * (A >= 1 ? 1.4 : 1);
-        o.interval = 2.6;
+        o.dmg = 120 * (A >= 1 ? 1.4 : 1);
+        o.interval = 2.8;
         o.range = 340 * (C >= 1 ? 1.25 : 1);
         o.minR = 85;
         o.blast = 50;
         o.bounce1 = A >= 2;
         o.frag = A >= 3;
-        o.bounce3 = A >= 4;
+        o.triple = A >= 4; // Triple-cañón
         o.tar = B >= 1;
         o.barrel = B >= 2;
         o.heat = B >= 3;
@@ -95,8 +96,8 @@ export const NewTowers = {
         o.chest = C >= 4;
         break;
       case 'nigromante':
-        o.dmg = 15;
-        o.interval = 1.6;
+        o.dmg = 95;
+        o.interval = 3.2;
         o.range = 190;
         o.raise = A >= 1;
         o.unstable = A >= 2;
@@ -104,11 +105,12 @@ export const NewTowers = {
         o.lord = A >= 4;
         o.curse = B >= 1;
         o.contagion = B >= 2;
-        o.pact = B >= 3;
+        o.pact = B >= 3; // Pacto de sangre: -3% de vida máxima por ataque a los malditos
         o.bond = C >= 1;
         o.soulPow = C >= 2;
-        o.soulRay = C >= 3 && C < 4;
+        o.soulRay = C >= 3; // con 5 almas o más ataca con un rayo de energía oscura
         o.soulStorm = C >= 4;
+        o.soulMax = C >= 4 ? 20 : 10;
         break;
       case 'druida':
         o.dmg = 11;
@@ -132,7 +134,7 @@ export const NewTowers = {
   // ------------------------------------------------------------------ AUXILIARES
   // Inmoviliza a un zombi. Los férreos (inmunes a efectos de velocidad) no se inmovilizan; los jefes, como mucho 1 s.
   ntImmobilize(e, dur, bossCap = 1, force = false) {
-    if (e.dead || e.def.noSlow || (e.def.mini && !force)) return false; // los minijefes no se pueden aturdir ni inmovilizar con mejoras normales
+    if (e.dead || e.def.noSlow || e.def.noStun || (e.def.mini && !force)) return false; // inmunes al aturdimiento; los minijefes solo con algunas mejoras
     const d = e.def.boss || e.def.mini ? Math.min(dur, bossCap) : dur;
     e.frozenUntil = Math.max(e.frozenUntil || 0, this.now + d);
     return true;
@@ -162,8 +164,22 @@ export const NewTowers = {
     if (e.dead) return;
     e.curseUntil = this.now + 8;
     e.curser = t;
-    e.bloodPact = t.ups.B >= 3;
-    this.ntShred(e, 8, 0.25);
+    this.ntShred(e, 8, 0.1); // el maldito recibe un 10% más de daño
+  },
+
+  // Un nigromante golpea a un zombi: a los 3 ataques lo maldice; con Pacto de sangre los malditos pierden un 3% de su vida máxima por ataque
+  ntCurseHit(e, t, s) {
+    if (e.dead || !s.curse) return;
+    if (e.curseUntil > this.now) {
+      if (s.pact) this.damage(e, e.maxHp * 0.03, { src: t, ignoreResist: true });
+      e.curseUntil = this.now + 8;
+      return;
+    }
+    e.curseHits = (e.curseHits || 0) + 1;
+    if (e.curseHits >= 3) {
+      e.curseHits = 0;
+      this.ntCurse(e, t);
+    }
   },
 
   // punto de un recorrido más cercano a (x, y), avanzado `adv` px hacia el castillo
@@ -211,10 +227,11 @@ export const NewTowers = {
     this.addRing(x, y, r, p.color || 0xff8c42, 0.3);
     playFx(this, 'fx_explosion1', x, y, Math.max(0.5, r / 48));
     for (const e of this.enemiesNear(x, y, r)) {
+      if (!this.canHit(p.src, e)) continue;
       let d = dmg;
       if (p.heat && e.burnUntil > this.now) d *= 1.5;
       if (p.tar) {
-        e.burnUntil = this.now + 5;
+        e.burnUntil = this.now + 8;
         e.burnDps = Math.max(e.burnDps, 6);
         e.burnSrc = p.src;
       }
@@ -230,7 +247,7 @@ export const NewTowers = {
       o.auraDmg = 1;
       o.rangeMul = 1;
     }
-    const soul = Math.min(5, this.towers.filter((x) => x.type === 'nigromante' && x.ups.C >= 1).length);
+    const soul = Math.min(40, this.towers.filter((x) => x.type === 'nigromante' && x.ups.C >= 1).length);
     for (const m of this.towers) {
       if (m.type === 'monje' && m.ups.A >= 1) {
         const s = this.stats(m);
@@ -261,7 +278,7 @@ export const NewTowers = {
       if (m.type === 'druida' && m.ups.B >= 3 && this.allies.some((a) => a.kind === 'wolf' && a.owner === m)) {
         for (const o of this.towers) if (o !== m && D(m.x, m.y, o.x, o.y) <= 200) o.auraSpeed = Math.max(o.auraSpeed, 1.15);
       }
-      if (m.type === 'nigromante' && m.ups.C >= 2) m.auraDmg *= 1 + 0.2 * soul;
+      if (m.type === 'nigromante' && m.ups.C >= 2) m.auraDmg *= 1 + 0.1 * soul;
     }
   },
 
@@ -295,25 +312,12 @@ export const NewTowers = {
             }
           }
         }
-        if (s.ascend) {
-          t.ascT = (t.ascT || 0) + dt;
-          if (t.ascT >= 20) {
-            let near = null;
-            let bd = 1e9;
-            for (const o of this.towers) {
-              if (o === t) continue;
-              const d = D(t.x, t.y, o.x, o.y);
-              if (d < bd) {
-                bd = d;
-                near = o;
-              }
-            }
-            if (near) {
-              t.ascT = 0;
-              near.ascUntil = this.now + 6;
-              this.addRing(near.x, near.y, 50, 0xfff176, 0.8);
-              this.floatText(near.x, near.y - 44, '✨ Ascensión', '#fff59d');
-            }
+        if (s.judgement) {
+          t.judgeT = (t.judgeT || 0) + dt;
+          if (t.judgeT >= 30 && this.enemies.some((e) => !e.dead)) {
+            t.judgeT = 0;
+            this.ntJudgement(t, s);
+            this.floatText(t.x, t.y - 44, '⚡ Juicio divino', '#fff59d');
           }
         }
         if (s.exorcism) {
@@ -336,6 +340,20 @@ export const NewTowers = {
         break;
       case 'ingeniero':
         this.ntEngineer(t, s, dt);
+        break;
+      case 'asedio':
+        // Golpe de gracia: cada 8 s, obús x10 al zombi con más vida a su alcance (lo aturde 5 s)
+        if (s.grace) {
+          t.graceT = (t.graceT || 0) + dt;
+          if (t.graceT >= 8) {
+            const list = this.targetsIn(t, s.range).filter((e) => D(t.x, t.y, e.x, e.y) >= s.minR);
+            if (list.length) {
+              t.graceT = 0;
+              const top = list.reduce((b, e) => (e.hp > b.hp ? e : b), list[0]);
+              this.ntRock(t, s, top, { dmg: s.dmg * 10, grace: true });
+            }
+          }
+        }
         break;
       case 'midas':
         if (s.touch) {
@@ -430,7 +448,7 @@ export const NewTowers = {
         let d = s.dmg;
         if (s.punish && tg.hp < tg.maxHp) d *= 1.5;
         this.effects.push({ kind: 'bolt', x: t.x, y: t.y - 10, x2: tg.x, y2: tg.y, life: 0.25, max: 0.25, color: 0xfff59d });
-        this.damage(tg, d, { src: t, ignoreResist: true });
+        this.damage(tg, d, { src: t, dtype: 'luz' });
         this.towerAnim(t, tg);
         t.cd = s.interval;
         return;
@@ -454,9 +472,18 @@ export const NewTowers = {
       case 'nigromante': {
         const tg = this.pickTarget(t, s.range);
         if (!tg) return;
-        this.effects.push({ kind: 'bolt', x: t.x, y: t.y - 10, x2: tg.x, y2: tg.y, life: 0.25, max: 0.25, color: 0xba68c8 });
-        this.damage(tg, s.dmg, { src: t });
-        if (s.curse) this.ntCurse(tg, t);
+        if (s.soulRay && (t.souls || 0) >= 5) {
+          // Rayo de almas: un rayo de energía oscura que atraviesa a todos los de la línea (mucho más daño)
+          const ang = Math.atan2(tg.y - t.y, tg.x - t.x);
+          this.ntLine(t.x, t.y, ang, s.range + 60, 16).forEach((e) => {
+            this.damage(e, s.dmg * 3, { src: t, dtype: 'oscuridad' });
+            this.ntCurseHit(e, t, s);
+          });
+          this.effects.push({ kind: 'darkbeam', x: t.x, y: t.y - 12, ang, len: s.range + 60, life: 0.35, max: 0.35 });
+        } else {
+          // bola de sangre: sale despacio y acelera rápido hasta el zombi
+          this.projectiles.push({ kind: 'blood', x: t.x, y: t.y - 14, target: tg, lx: tg.x, ly: tg.y, v: 60, dmg: s.dmg, stats: s, src: t, trail: [] });
+        }
         this.towerAnim(t, tg);
         t.cd = s.interval;
         return;
@@ -513,13 +540,10 @@ export const NewTowers = {
       let d = s.dmg * mul;
       if (s.steel && e === head) d *= 1.4;
       if (o.duel && e === o.duel) d *= 1.5;
-      if (s.king) {
-        if (e.def.resist > 0 || e.def.boss || e.def.mini) d *= 3;
-        this.ntShred(e, 5, 0.3);
-      }
+      if (s.king && (e.def.resist > 0 || e.def.boss || e.def.mini)) d *= 3; // con armadura, jefes y minijefes
       this.damage(e, d, { src: t });
-      // Clavar lanza: ancla al primero que atraviesa (máx. 5 veces por zombi)
-      if (s.anchor && o.anchor && i === 0 && !e.dead && (e.anchors || 0) < 5) {
+      // Clavar lanza: ancla al primero que atraviesa (máx. 4 veces por zombi)
+      if (s.anchor && o.anchor && i === 0 && !e.dead && (e.anchors || 0) < 4) {
         if (this.ntImmobilize(e, 3, 1)) {
           e.anchors = (e.anchors || 0) + 1;
           if (s.mark) this.ntMark(e, 4, 1.4); // Empalamiento
@@ -533,12 +557,17 @@ export const NewTowers = {
     const list = this.targetsIn(t, s.range).filter((e) => D(t.x, t.y, e.x, e.y) >= s.minR);
     if (!list.length) return;
     t.shots = (t.shots || 0) + 1;
-    const grace = s.grace && t.shots % 8 === 0;
     const frag = s.frag && t.shots % 4 === 0;
-    const barrel = s.barrel && t.shots % 4 === 0;
-    let target = list[0];
-    if (grace) for (const e of list) if (e.hp > target.hp) target = e;
-    this.ntRock(t, s, target, { dmg: s.dmg * (grace ? 10 : 1), grace, frag, barrel });
+    const barrel = s.barrel && t.shots % 3 === 0; // cada 3er tiro
+    const target = list[0];
+    this.ntRock(t, s, target, { dmg: s.dmg, frag, barrel });
+    // Triple-cañón: 2 proyectiles más a enemigos aleatorios a su alcance
+    if (s.triple) {
+      for (let i = 0; i < 2; i++) {
+        const r = list[Math.floor(Math.random() * list.length)];
+        this.timers.push({ t: 0.12 * (i + 1), fn: () => this.towers.includes(t) && !r.dead && this.ntRock(t, s, r, { dmg: s.dmg }) });
+      }
+    }
     this.towerAnim(t, target);
     t.cd = s.interval;
   },
@@ -560,7 +589,7 @@ export const NewTowers = {
       blast: s.blast * (o.barrel ? 2 : 1),
       frag: o.frag,
       grace: o.grace,
-      bounces: o.frag ? 0 : s.bounce3 ? 3 : s.bounce1 ? 1 : 0,
+      bounce: !o.frag && s.bounce1, // Piedras rebotadoras: 1 rebote hacia el enemigo más cercano
       tar: s.tar,
       heat: s.heat,
       resMul: s.antiarm ? 0.5 : undefined,
@@ -571,7 +600,7 @@ export const NewTowers = {
 
   ntRockLand(p) {
     const base = { src: p.src, tar: p.tar, heat: p.heat, resMul: p.resMul, color: p.barrel ? 0xff7043 : 0xa1887f };
-    this.ntSplash(p.tx, p.ty, p.blast, p.dmg, { ...base, stun: p.grace ? 2 : 0 });
+    this.ntSplash(p.tx, p.ty, p.blast, p.dmg, { ...base, stun: p.grace ? 5 : 0 });
     if (p.frag) {
       // Fragmentación: 8 explosiones en anillo alrededor del impacto
       for (let i = 0; i < 8; i++) {
@@ -581,9 +610,22 @@ export const NewTowers = {
         this.timers.push({ t: 0.12 + i * 0.03, fn: () => this.ntSplash(fx, fy, 30, p.dmg * 0.5, { ...base }) });
       }
     }
-    for (let k = 1; k <= p.bounces; k++) {
-      const pos = this.ntAlong(p.tx, p.ty, 85 * k);
-      this.timers.push({ t: 0.35 * k, fn: () => this.ntSplash(pos.x, pos.y, p.blast * 0.8, p.dmg * 0.7, { ...base }) });
+    if (p.bounce) {
+      // rebota hacia el enemigo más cercano al impacto, solo si está cerca (unos 3 héroes de distancia, 150 px)
+      let near = null;
+      let bd = 150;
+      for (const e of this.enemies) {
+        if (e.dead || !this.canHit(p.src, e)) continue;
+        const d = D(p.tx, p.ty, e.x, e.y);
+        if (d > p.blast * 0.6 && d < bd) {
+          bd = d;
+          near = e;
+        }
+      }
+      if (near) {
+        const nx = near.x, ny = near.y;
+        this.timers.push({ t: 0.35, fn: () => this.ntSplash(nx, ny, p.blast * 0.8, p.dmg * 0.7, { ...base }) });
+      }
     }
   },
 
@@ -645,7 +687,8 @@ export const NewTowers = {
 
   // ---- Nigromante: rayo y enjambre de almas (se cargan con las bajas)
   ntSouls(t, s) {
-    const need = s.soulStorm ? 20 : 10;
+    if (!s.soulStorm) return; // el Rayo de almas no gasta almas: es el ataque normal con 5 o más
+    const need = 20;
     if ((t.souls || 0) < need) return;
     const list = this.targetsIn(t, 420);
     if (!list.length) return;
@@ -696,12 +739,12 @@ export const NewTowers = {
           if (tr.rearm <= 0) tr.armed = true;
           continue;
         }
-        const e = this.enemies.find((z) => !z.dead && D(z.x, z.y, tr.x, tr.y) < 24);
+        const e = this.enemies.find((z) => !z.dead && !z.def.flying && D(z.x, z.y, tr.x, tr.y) < 24);
         if (!e) continue;
         tr.armed = false;
         tr.rearm = 10;
         tr.used = true;
-        this.ntImmobilize(e, 5, 1);
+        this.ntImmobilize(e, 3, 1);
         this.addRing(tr.x, tr.y, 26, 0xbdbdbd, 0.4);
       }
       if (!s.rearm) t.trapList = t.trapList.filter((tr) => !tr.used);
@@ -727,7 +770,7 @@ export const NewTowers = {
           }
           continue;
         }
-        if (!this.enemies.some((z) => !z.dead && D(z.x, z.y, m.x, m.y) < 24)) continue;
+        if (!this.enemies.some((z) => !z.dead && !z.def.flying && D(z.x, z.y, m.x, m.y) < 24)) continue;
         m.armed = false;
         m.rearm = 6;
         this.ntSplash(m.x, m.y, 62, 45 * k * this.tierBoost(t), { src: t, color: 0xff7043 });
@@ -738,10 +781,10 @@ export const NewTowers = {
         }
       }
     }
-    // torretas de ballesta (con Torretas especiales: 1 triple, 2 lanza-cepos, 3 fuego, 4 marca)
+    // torretas de ballesta (con Torretas especiales: 1 triple, 2 lanza-cepos, 3 fuego)
     if (s.turrets) {
-      t.turretCd = t.turretCd || [0, 0, 0, 0];
-      t.turretAng = t.turretAng || [0, Math.PI, -Math.PI / 2, Math.PI / 2];
+      t.turretCd = t.turretCd || [0, 0, 0];
+      t.turretAng = t.turretAng || [-Math.PI / 2, Math.PI, 0];
       const dmg = 9 * this.tierBoost(t) * (t.auraDmg || 1) * k;
       for (let i = 0; i < s.turrets; i++) {
         t.turretCd[i] -= dt;
@@ -749,7 +792,7 @@ export const NewTowers = {
         const [ox, oy] = TURRET_POS[i];
         const tx = t.x + ox;
         const ty = t.y + oy;
-        const list = this.enemies.filter((e) => !e.dead && D(tx, ty, e.x, e.y) <= 215).sort(this.prioCmp(t));
+        const list = this.enemies.filter((e) => !e.dead && D(tx, ty, e.x, e.y) <= 215 && this.canHit(t, e)).sort(this.prioCmp(t));
         if (!list.length) continue;
         const e = list[Math.min(i, list.length - 1)];
         t.turretAng[i] = Math.atan2(e.y - ty, e.x - tx);
@@ -769,9 +812,6 @@ export const NewTowers = {
           e.burnUntil = this.now + 4;
           e.burnDps = Math.max(e.burnDps || 0, 8 * this.tierBoost(t));
           e.burnSrc = t;
-        } else if (s.turretFx && i === 3) {
-          shoot(e, dmg, 0xce93d8); // marca: x1,5 de daño de todas las defensas
-          this.ntMark(e, 4, 1.5);
         } else shoot(e, dmg, 0xffcc80);
         t.turretCd[i] = cdv / k;
       }
@@ -781,8 +821,17 @@ export const NewTowers = {
       t.golemT = (t.golemT ?? 22) - dt;
       if (t.golemT <= 0 && this.waveRunning) {
         t.golemT = 40;
-        const ri = Math.floor(Math.random() * this.routes.length);
-        this.allies.push({ kind: 'golem', owner: t, route: ri, dist: 0, life: 30, cd: 0, chains: [], x: 0, y: 0, txt: this.ntGolemSprite(0xffffff, 1.1) }); // dura el doble (30 s)
+        // nace en el punto del camino más cercano al Ingeniero (dentro de su radio)
+        let ri = 0, bd0 = 1e9, d0 = 0;
+        this.routes.forEach((R, r) => {
+          for (let d = 0; d <= R.len; d += 12) {
+            const q = this.posAt(d, 0, r);
+            const dd = D(t.x, t.y, q.x, q.y);
+            if (dd < bd0) { bd0 = dd; ri = r; d0 = d; }
+          }
+        });
+        const p0 = this.posAt(d0, 0, ri);
+        this.allies.push({ kind: 'golem', owner: t, route: ri, dist: d0, life: 30, cd: 0, chains: [], x: p0.x, y: p0.y, txt: this.ntGolemSprite(0xffffff, 1.1) });
         this.floatText(t.x, t.y - 44, '🤖 Autómata', '#bdbdbd');
       }
     }
@@ -816,22 +865,14 @@ export const NewTowers = {
         if (Math.abs(p.x - a.x) > 0.01 && a.txt) a.txt.setFlipX(p.x < a.x);
         a.x = p.x;
         a.y = p.y;
-        // encadena hasta 3 zombis dentro de su rango (similar al del Alquimista)
-        a.chains = a.chains.filter((e) => !e.dead && D(a.x, a.y, e.x, e.y) <= 161);
-        for (const e of this.enemies) {
-          if (a.chains.length >= 3) break;
-          if (e.dead || a.chains.includes(e) || D(a.x, a.y, e.x, e.y) > 161 || e.def.boss || e.def.noSlow) continue;
-          a.chains.push(e);
-        }
-        a.chains.forEach((e) => this.ntImmobilize(e, 0.3, 0.3));
+        // lanza proyectiles de chatarra a los zombis de su alcance
         a.cd -= dt;
         if (a.cd <= 0 && o) {
-          const list = this.enemies.filter((e) => !e.dead && D(a.x, a.y, e.x, e.y) <= 161).sort(this.prioCmp(o));
+          const list = this.enemies.filter((e) => !e.dead && !e.def.flying && D(a.x, a.y, e.x, e.y) <= 161).sort(this.prioCmp(o));
           if (list.length) {
             a.cd = 1.2 / k;
-            this.effects.push({ kind: 'bolt', x: a.x, y: a.y - 10, x2: list[0].x, y2: list[0].y, life: 0.2, max: 0.2, color: 0x4fc3f7 });
             this.ntGolemAttack(a, list[0]);
-            this.damage(list[0], 18 * this.tierBoost(o) * (o.auraDmg || 1), { src: o });
+            this.projectiles.push({ kind: 'scrap', x: a.x, y: a.y - 24, target: list[0], lx: list[0].x, ly: list[0].y, dmg: 18 * this.tierBoost(o) * (o.auraDmg || 1), src: o, spin: 0 });
           }
         }
       } else if (a.kind === 'wolf') {
@@ -924,20 +965,22 @@ export const NewTowers = {
           } else {
             a.cd -= dt;
             if (a.cd <= 0) {
-              a.cd = 0.8;
-              const d = (a.giant ? 55 : 12) * this.tierBoost(o) * (o.auraDmg || 1);
               if (a.giant) {
+                a.cd = 3; // el gigante golpea cada 3 s a un enemigo cercano: 200 de daño
                 this.ntGolemAttack(a, tg);
-                this.ntSplash(tg.x, tg.y, 60, d, { src: o, color: 0xab47bc });
+                this.addRing(tg.x, tg.y, 26, 0xab47bc, 0.35);
+                this.damage(tg, 200 * (o.auraDmg || 1), { src: o });
+              } else {
+                a.cd = 0.8;
+                this.damage(tg, 12 * this.tierBoost(o) * (o.auraDmg || 1), { src: o });
               }
-              else this.damage(tg, d, { src: o });
             }
           }
         }
       }
       if (a.txt) a.txt.setPosition(a.x, a.y);
       if (a.life <= 0) {
-        if (a.kind === 'minion' && a.unstable) this.ntSplash(a.x, a.y, 60, 40 * (a.owner.auraDmg || 1), { src: a.owner, color: 0xab47bc });
+        if (a.kind === 'minion' && a.unstable && !a.giant) this.ntSplash(a.x, a.y, 60, 300 * (a.owner.auraDmg || 1), { src: a.owner, color: 0xab47bc });
         if (a.txt) a.txt.destroy();
       }
     }
@@ -955,13 +998,13 @@ export const NewTowers = {
   ntRaise(owner, e, giant) {
     const s = this.stats(owner);
     const mine = this.allies.filter((a) => a.kind === 'minion' && a.owner === owner && !a.giant).length;
-    if (!giant && mine >= (s.horde ? 6 : 3)) return;
+    if (!giant && mine >= (s.horde ? 10 : 5)) return;
     this.allies.push({
       kind: 'minion',
       owner,
       giant,
       unstable: s.unstable,
-      life: giant ? 12 : 5 + (s.unstable ? 3 : 0),
+      life: giant ? 12 : 10 + (s.unstable ? 5 : 0),
       cd: 0.3,
       x: e.x,
       y: e.y,
@@ -988,6 +1031,50 @@ export const NewTowers = {
 
   // ------------------------------------------------------------------ PROYECTILES NUEVOS
   ntProjectile(p, dt) {
+    if (p.kind === 'scrap') {
+      if (p.target && !p.target.dead) {
+        p.lx = p.target.x;
+        p.ly = p.target.y;
+      }
+      const dx = p.lx - p.x, dy = p.ly - p.y;
+      const d = Math.hypot(dx, dy);
+      const step = 520 * dt;
+      p.spin += dt * 14;
+      if (d <= step + 6) {
+        p.dead = true;
+        if (p.target && !p.target.dead) this.damage(p.target, p.dmg, { src: p.src });
+        this.addRing(p.lx, p.ly, 14, 0x9e9e9e, 0.25);
+      } else {
+        p.x += (dx / d) * step;
+        p.y += (dy / d) * step;
+      }
+      return;
+    }
+    if (p.kind === 'blood') {
+      if (p.target && !p.target.dead) {
+        p.lx = p.target.x;
+        p.ly = p.target.y + (p.target.flyY || 0);
+      }
+      p.v = Math.min(900, p.v + 2600 * dt); // empieza lenta y acelera rápido
+      const dx = p.lx - p.x, dy = p.ly - p.y;
+      const d = Math.hypot(dx, dy);
+      const step = p.v * dt;
+      p.trail.push({ x: p.x, y: p.y, life: 0.25 });
+      if (p.trail.length > 10) p.trail.shift();
+      p.trail.forEach((q) => (q.life -= dt));
+      if (d <= step + 6) {
+        p.dead = true;
+        if (p.target && !p.target.dead) {
+          this.damage(p.target, p.dmg, { src: p.src, dtype: 'oscuridad' });
+          this.ntCurseHit(p.target, p.src, p.stats);
+        }
+        this.addRing(p.lx, p.ly, 16, 0xb71c1c, 0.3);
+      } else {
+        p.x += (dx / d) * step;
+        p.y += (dy / d) * step;
+      }
+      return;
+    }
     if (p.kind === 'rock') {
       p.t += dt;
       const k = Math.min(1, p.t / p.dur);
@@ -1063,28 +1150,30 @@ export const NewTowers = {
         if (!live.length) return false;
         const lead = live.reduce((b, e) => (e.dist > b.dist ? e : b), live[0]);
         const base = Math.atan2(lead.y - t.y, lead.x - t.x);
-        for (let i = 0; i < 7; i++) {
-          const a = base + (i - 3) * 0.3;
+        for (let i = 0; i < 6; i++) {
+          const a = base + (i - 2.5) * 0.3;
           this.projectiles.push({ kind: 'ghost', x: t.x, y: t.y - 6, ang: a, speed: 520, bounces: 5, life: 9, dmg: s.dmg * 2.5, hitAt: new Map(), src: t });
         }
         this.addRing(t.x, t.y, 60, 0x90caf9, 0.5);
         return true;
       }
       case 'monje': {
-        if (!live.length) return false;
-        const top = [...live].sort((a, b) => b.hp - a.hp).slice(0, 5);
-        top.forEach((e) => this.effects.push({ kind: 'column', x: e.x, y: e.y, life: 2, max: 2 }));
-        this.timers.push({
-          t: 2,
-          fn: () => {
-            top.forEach((e) => {
-              if (e.dead) return;
-              this.effects.push({ kind: 'column', x: e.x, y: e.y, life: 0.5, max: 0.5, hit: true });
-              this.damage(e, s.dmg * 20, { src: t, ignoreResist: true });
-              this.ntMark(e, 10, 1.25);
-            });
-          },
-        });
+        // Ascensión (ACTIVA): el héroe más cercano asciende 10 s: x2 de daño y de cadencia
+        let near = null;
+        let bd = 1e9;
+        for (const o of this.towers) {
+          if (o === t) continue;
+          const d = D(t.x, t.y, o.x, o.y);
+          if (d < bd) {
+            bd = d;
+            near = o;
+          }
+        }
+        if (!near) return false;
+        near.ascUntil = this.now + 10;
+        this.addRing(near.x, near.y, 60, 0xffd700, 0.9);
+        this.effects.push({ kind: 'column', x: near.x, y: near.y, life: 0.8, max: 0.8, hit: true });
+        this.floatText(near.x, near.y - 50, '✨ Ascensión', '#ffd700');
         return true;
       }
       case 'ingeniero':
@@ -1137,50 +1226,54 @@ export const NewTowers = {
     }
   },
 
+  // Juicio divino (Monje A4, automático): columna de luz sobre los 5 zombis con más vida y los marca
+  ntJudgement(t, s) {
+    const top = this.enemies.filter((e) => !e.dead).sort((a, b) => b.hp - a.hp).slice(0, 5);
+    top.forEach((e) => this.effects.push({ kind: 'column', x: e.x, y: e.y, life: 2, max: 2 }));
+    this.timers.push({
+      t: 2,
+      fn: () => {
+        top.forEach((e) => {
+          if (e.dead) return;
+          this.effects.push({ kind: 'column', x: e.x, y: e.y, life: 0.5, max: 0.5, hit: true });
+          this.damage(e, s.dmg * 20, { src: t, dtype: 'luz' });
+          this.ntMark(e, 10, 1.25);
+        });
+      },
+    });
+  },
+
   // ------------------------------------------------------------------ GANCHOS DE EVENTOS
   ntOnKill(e, src) {
     if (src && src.type === 'lancero' && src.ups.C >= 3) src.combo = Math.min(3, (src.combo || 0) + 1);
     if (e.turretHit && this.towers.includes(e.turretHit)) e.turretHit.turretKills = (e.turretHit.turretKills || 0) + 1;
+    let scrap = 0; // suministros de Chatarrero dados por esta baja (máx. 2)
     for (const t of this.towers) {
       if (!NEW_TYPES.includes(t.type)) continue;
       const s = this.stats(t);
       const d = D(t.x, t.y, e.x, e.y);
-      if (t.type === 'monje' && s.tithe && d <= s.range) {
-        t.tithe = (t.tithe || 0) + 1;
-        if (t.tithe >= 20) {
-          t.tithe = 0;
-          this.supplies += 8;
-          this.floatText(t.x, t.y - 44, '+8 🛠 diezmo', '#fff59d');
-        }
-      }
-      if (t.type === 'ingeniero' && s.scrap && d <= s.range) {
-        this.supplies += 4;
-        this.floatText(e.x, e.y - 20, '+4 ⚙', '#bdbdbd');
+
+      if (t.type === 'ingeniero' && s.scrap && d <= s.range && scrap < 2) {
+        scrap += 1;
+        this.supplies += 1;
       }
       if (t.type === 'midas' && s.collect && d <= s.range) {
+        // (Recaudador)
         t.vault = (t.vault || 0) + 1; // Recaudador: 1 suministro por baja, en su inventario (se recauda con el botón de su panel)
       }
       if (t.type === 'nigromante' && d <= s.range + 40) {
-        if (s.soulRay || s.soulStorm) t.souls = Math.min(s.soulStorm ? 20 : 10, (t.souls || 0) + 1);
+        if (s.bond) t.souls = Math.min(s.soulMax, (t.souls || 0) + 1); // cada baja cerca carga un alma
         if (s.raise) {
           if ((e.def.boss || e.def.mini) && s.lord) this.ntRaise(t, e, true);
-          else if (Math.random() < 0.25) this.ntRaise(t, e, false);
+          else if (Math.random() < 0.2) this.ntRaise(t, e, false);
         }
       }
     }
+    if (scrap) this.floatText(e.x, e.y - 20, `+${scrap} ⚙`, '#bdbdbd');
     // Contagio: la maldición salta a otro zombi al morir el maldito
     if (e.curseUntil > this.now && e.curser && this.towers.includes(e.curser) && e.curser.ups.B >= 2) {
-      let best = null;
-      let bd = 140;
-      for (const o of this.enemies) {
-        if (o.dead || o === e || o.curseUntil > this.now) continue;
-        const d = D(e.x, e.y, o.x, o.y);
-        if (d < bd) {
-          bd = d;
-          best = o;
-        }
-      }
-      if (best) this.ntCurse(best, e.curser);
+      const cand = this.enemies.filter((o) => !o.dead && o !== e && !(o.curseUntil > this.now));
+      if (cand.length) this.ntCurse(cand[Math.floor(Math.random() * cand.length)], e.curser);
     }
     // Midas verdadero: un zombi dorado contagia el oro a los cercanos al morir
     if (e.goldUntil > this.now) {
@@ -1202,6 +1295,14 @@ export const NewTowers = {
 
   ntOnWaveStart() {
     this.leakedWave = false;
+    // Diezmo de caridad (Monje B2): al empezar la ronda, +10 suministros por cada héroe en el mapa
+    for (const t of this.towers) {
+      if (t.type === 'monje' && t.ups.B >= 2) {
+        const v = 10 * this.towers.length;
+        this.supplies += v;
+        this.floatText(t.x, t.y - 44, `+${v} 🛠 diezmo`, '#fff59d');
+      }
+    }
     for (const t of this.towers) {
       if (t.type === 'ingeniero') t.moveCharges = t.ups.C >= 1 ? 1 : 0; // Taller móvil: una vez por oleada
       if (t.type === 'lancero') t.combo = 0;
@@ -1230,7 +1331,6 @@ export const NewTowers = {
     if (e.rootUntil > this.now && e.rootSrc && this.towers.includes(e.rootSrc) && e.rootSrc.ups.A >= 2) {
       this.damage(e, 10 * dt * this.tierBoost(e.rootSrc) * (e.rootSrc.auraDmg || 1), { dot: true, src: e.rootSrc }); // Espinas
     }
-    if (e.bloodPact && e.curseUntil > this.now) this.damage(e, e.maxHp * 0.01 * dt, { dot: true, src: e.curser, ignoreResist: true });
   },
 
   // Mover una defensa gratis (Taller móvil del Ingeniero)
@@ -1303,6 +1403,15 @@ export const NewTowers = {
     for (const e of this.enemies) {
       if (e.dead) continue;
       const r = e.def.size * 0.55;
+      // resistencia predominante: anillo del color de su tipo bajo los pies · maestro: anillo dorado
+      if (e.predom) {
+        b.lineStyle(3, DTYPES[e.predom].color, 0.85);
+        b.strokeEllipse(e.x, e.y + 14, r * 1.7, r * 0.7);
+      }
+      if (e.def.master) {
+        b.lineStyle(2, 0xffd700, 0.9);
+        b.strokeEllipse(e.x, e.y + 14, r * 2.1, r * 0.9);
+      }
       if (e.markUntil > this.now) {
         b.lineStyle(3, 0xfff59d, 1);
         b.strokeCircle(e.x, e.y + 2, r + 9);
@@ -1342,7 +1451,7 @@ export const NewTowers = {
           a.strokeCircle(m.x, m.y, 8);
         }
         const st = this.stats(t);
-        const FXC = [0xffd54f, 0x90a4ae, 0xff7043, 0xce93d8];
+        const FXC = [0xffd54f, 0x90a4ae, 0xff7043];
         for (let i = 0; i < st.turrets; i++) {
           const [ox, oy] = TURRET_POS[i];
           this.ntBallista(a, t.x + ox, t.y + oy, (t.turretAng || [])[i] ?? 0, st.turretFx ? FXC[i] : null);
@@ -1364,8 +1473,18 @@ export const NewTowers = {
         b.strokeCircle(t.x, t.y, this.stats(t).auraR);
       }
       if (t.ascUntil > this.now) {
-        a.lineStyle(4, 0xfff176, 1);
-        a.strokeCircle(t.x, t.y + 6, 34);
+        // Ascensión: halo dorado y luz
+        a.fillStyle(0xfff8e1, 0.18 + 0.08 * Math.sin(this.now * 6));
+        a.fillCircle(t.x, t.y, 40);
+        a.lineStyle(4, 0xffd700, 1);
+        a.strokeCircle(t.x, t.y + 6, 38);
+      }
+      // contador de almas del Nigromante
+      if (t.type === 'nigromante' && t.ups.C >= 1) {
+        if (!t.soulTxt) t.soulTxt = this.add.text(t.x, t.y - 52, '', { fontFamily: 'Nunito, sans-serif', fontSize: '15px', color: '#e1bee7', fontStyle: 'bold', stroke: '#1a0026', strokeThickness: 4 }).setOrigin(0.5).setDepth(21);
+        const sv = `👻 ${t.souls || 0}`;
+        if (t.soulTxt.text !== sv) t.soulTxt.setText(sv);
+        t.soulTxt.setPosition(t.x, t.y - 52).setColor((t.souls || 0) >= 5 && t.ups.C >= 3 ? '#ea80fc' : '#e1bee7');
       }
     }
     // aliados: golem de chatarra y esbirros (dibujados con formas, sin texto)
@@ -1429,6 +1548,25 @@ export const NewTowers = {
         a.lineTo(p.x - gc * 8 + gs * 5, p.y - gs * 8 - gc * 5);
         a.closePath();
         a.fillPath();
+      } else if (p.kind === 'scrap') {
+        // trozo de chatarra que gira
+        const c = Math.cos(p.spin) * 6, s2 = Math.sin(p.spin) * 6;
+        a.fillStyle(0x78909c, 1);
+        a.fillTriangle(p.x + c, p.y + s2, p.x - s2, p.y + c, p.x - c * 0.6, p.y - s2 * 0.6);
+        a.lineStyle(1.5, 0x37474f, 1);
+        a.strokeTriangle(p.x + c, p.y + s2, p.x - s2, p.y + c, p.x - c * 0.6, p.y - s2 * 0.6);
+      } else if (p.kind === 'blood') {
+        for (const q of p.trail) {
+          if (q.life <= 0) continue;
+          a.fillStyle(0x8e0000, q.life * 2);
+          a.fillCircle(q.x, q.y, 4);
+        }
+        a.fillStyle(0x4a0000, 1);
+        a.fillCircle(p.x, p.y, 8);
+        a.fillStyle(0xd50000, 1);
+        a.fillCircle(p.x, p.y, 6);
+        a.fillStyle(0xff8a80, 0.9);
+        a.fillCircle(p.x - 2, p.y - 2, 2);
       } else if (p.kind === 'wisp') {
         a.fillStyle(0xce93d8, 0.9);
         a.fillCircle(p.x, p.y, 8);
@@ -1470,6 +1608,12 @@ export const NewTowers = {
         a.closePath();
         a.fillPath();
         a.strokePath();
+      } else if (f.kind === 'darkbeam') {
+        const ex = f.x + Math.cos(f.ang) * f.len, ey = f.y + Math.sin(f.ang) * f.len;
+        for (const [w, col, al] of [[22, 0x4a148c, 0.35], [12, 0x7b1fa2, 0.8], [4, 0xe1bee7, 1]]) {
+          a.lineStyle(w * (0.6 + 0.4 * k), col, al * k);
+          a.lineBetween(f.x, f.y, ex, ey);
+        }
       } else if (f.kind === 'column') {
         a.fillStyle(0xfff9c4, f.hit ? 0.6 * k : 0.25 + 0.2 * (1 - k));
         a.fillRect(f.x - 14, f.y - 220, 28, 220);

@@ -35,7 +35,7 @@ export default class TeamScene extends Phaser.Scene {
     this.drawCards();
     this.drawTeamStrip();
     this.add
-      .text(W / 2, H - 18, 'En cada nivel solo estarán las defensas que ese nivel permita. Los espacios extra se desbloquean con cerebros en el árbol de mejoras.', {
+      .text(W / 2, H - 18, 'En cada nivel solo estarán los héroes que ese nivel permita. Los espacios extra se desbloquean con cerebros en el árbol de mejoras.', {
         fontFamily: FONT, fontSize: '14px', color: COL.cream, stroke: '#2e1c0f', strokeThickness: 3,
       })
       .setOrigin(0.5, 1)
@@ -49,13 +49,13 @@ export default class TeamScene extends Phaser.Scene {
 
   toggle(id) {
     if (!towerUnlocked(this.sv, id)) {
-      this.say('🔒 Desbloquea esa defensa en el árbol de mejoras');
+      this.say('🔒 Desbloquea a ese héroe en el árbol de mejoras');
       return;
     }
     const i = this.team.indexOf(id);
     if (i >= 0) this.team.splice(i, 1);
     else if (this.team.length >= this.max) {
-      this.say(`Equipo lleno (${this.max}). Quita una defensa o desbloquea más espacios en el árbol.`);
+      this.say(`Equipo lleno (${this.max}). Quita a un héroe o desbloquea más espacios en el árbol.`);
       return;
     } else this.team.push(id);
     this.persist();
@@ -73,7 +73,7 @@ export default class TeamScene extends Phaser.Scene {
   }
 
   refreshInfo() {
-    this.info.setText(this.msg || `Defensas elegidas: ${this.team.length}/${this.max}   (toca una defensa para llevarla o quitarla)`);
+    this.info.setText(this.msg || `Héroes elegidos: ${this.team.length}/${this.max}   (toca a un héroe para llevarlo o quitarlo)`);
   }
 
   drawCards() {

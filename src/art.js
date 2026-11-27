@@ -1,4 +1,5 @@
-﻿// Carga de arte (pack Tiny Swords, copiado con nombres limpios en public/assets/game)
+﻿import { makeFlyerArt } from './flyerArt.js';
+// Carga de arte (pack Tiny Swords, copiado con nombres limpios en public/assets/game)
 // y registro de animaciones.
 import { ICON_IDS } from './upgradeIcons.js';
 const P = 'assets/game/';
@@ -119,6 +120,9 @@ export function loadArt(scene) {
   for (const key of ['ui_panel', 'ui_hp_frame', 'ui_hp_fill', 'ui_candle1', 'ui_candle2', 'ui_dagger1', 'ui_dagger2', 'ui_sign']) scene.load.image(key, P + 'ui/' + key + '.png');
   // iconos de mejoras (Raven Fantasy Icons)
   for (const k of Object.keys(ICON_IDS)) scene.load.image('ic_' + k, P + 'icons/ic_' + k + '.png');
+  // casillas dibujadas por Pol (32x32, el juego las amplía al doble)
+  scene.load.image('grass_tile', P + 'tiles/grass_tile3.png');
+  scene.load.image('tall_grass', P + 'tiles/tall_grass.png');
   // pantalla de inicio: fondo, logo y botón PLAY
   scene.load.image('title_bg', P + 'title/title_bg.jpg');
   scene.load.image('title_logo', P + 'title/title_logo.png');
@@ -128,6 +132,7 @@ export function loadArt(scene) {
 }
 
 export function registerAnims(scene) {
+  makeFlyerArt(scene); // voladores provisionales (dibujados con canvas)
   for (const [key, sheet, fps, repeat, only] of ANIMS) {
     if (scene.anims.exists(key)) continue;
     const n = SHEETS.find((s) => s[0] === sheet)[4];

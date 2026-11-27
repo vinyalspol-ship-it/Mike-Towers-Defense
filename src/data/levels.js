@@ -58,7 +58,7 @@ export const LEVELS = [
   {
     id: 1,
     name: 'Praderas · 1',
-    subtitle: 'Tutorial. Defensas: Bárbaro y Elfo',
+    subtitle: 'Tutorial. Héroes: Bárbaro y Elfo',
     path: [[-1, 1], [4, 1], [4, 6], [10, 6], [10, 2], [15, 2], [15, 6], [20, 6]],
     towers: ['barbaro', 'elfo'],
     startSupplies: 195,
@@ -75,7 +75,7 @@ export const LEVELS = [
     towers: ['barbaro', 'elfo', 'alquimista', 'mago'],
     startSupplies: 300,
     hpScale: 1.2,
-    waveCount: 8,
+    waveCount: 15,
     allow: ['normal', 'velocista', 'gladiador', 'paladin'],
   },
   {
@@ -86,21 +86,21 @@ export const LEVELS = [
     towers: ['barbaro', 'elfo', 'alquimista', 'mago'],
     startSupplies: 390,
     hpScale: 1.1,
-    waveCount: 10,
+    waveCount: 15,
     boss: true,
     allow: ['normal', 'velocista', 'gladiador', 'paladin'],
   },
   {
     id: 4,
     name: 'Pantano · 4',
-    subtitle: 'Blindados desde la oleada 7 y primer minijefe en la 10. 20 oleadas',
+    subtitle: 'Blindados desde la oleada 7 y primer minijefe en la 8. 15 oleadas',
     path: [[-1, 0], [3, 0], [3, 4], [8, 4], [8, 1], [12, 1], [12, 6], [17, 6], [17, 3], [20, 3]],
     towers: ['barbaro', 'elfo', 'alquimista', 'mago', 'lancero'],
     startSupplies: 340,
     hpScale: 1,
     ramp: true,
     countMul: 1,
-    waveCount: 20,
+    waveCount: 15,
     armoredFrom: 7,
     minis: M(1, 1, 2, 2),
     specials: [['toxico', 5]],
@@ -109,14 +109,14 @@ export const LEVELS = [
   {
     id: 5,
     name: 'Cañón · 5',
-    subtitle: 'Recorrido largo, 20 oleadas, blindados y varios minijefes',
+    subtitle: 'Recorrido largo, 15 oleadas, blindados y varios minijefes',
     path: [[-1, 6], [2, 6], [2, 2], [6, 2], [6, 6], [10, 6], [10, 1], [14, 1], [14, 5], [18, 5], [18, 2], [20, 2]],
     towers: ['barbaro', 'elfo', 'alquimista', 'mago', 'lancero', 'monje', 'ingeniero'],
     startSupplies: 360,
     hpScale: 1.1,
     ramp: true,
     countMul: 1.05,
-    waveCount: 20,
+    waveCount: 15,
     armoredFrom: 7,
     minis: M(1, 2, 2, 3),
     specials: [['toxico', 4], ['ignifugo', 7]],
@@ -132,7 +132,7 @@ export const LEVELS = [
     hpScale: 1.25,
     ramp: true,
     countMul: 1.1,
-    waveCount: 20,
+    waveCount: 15,
     armoredFrom: 7,
     minis: M(1, 2, 3, 3),
     specials: [['toxico', 4], ['ignifugo', 6], ['rigido', 8]],
@@ -141,14 +141,14 @@ export const LEVELS = [
   {
     id: 7,
     name: 'Colinas · 7',
-    subtitle: 'Zigzag vertical, 20 oleadas y varias rondas de minijefes',
+    subtitle: 'Zigzag vertical, 15 oleadas y varias rondas de minijefes',
     path: [[-1, 4], [2, 4], [2, 0], [6, 0], [6, 7], [10, 7], [10, 0], [14, 0], [14, 7], [17, 7], [17, 3], [20, 3]],
     towers: ['barbaro', 'elfo', 'alquimista', 'mago', 'lancero', 'monje', 'ingeniero', 'asedio', 'midas'],
     startSupplies: 400,
     hpScale: 1.4,
     ramp: true,
     countMul: 1.2,
-    waveCount: 20,
+    waveCount: 15,
     armoredFrom: 7,
     minis: M(1, 2, 3, 4),
     specials: [['toxico', 3], ['ignifugo', 5], ['rigido', 7]],
@@ -157,14 +157,14 @@ export const LEVELS = [
   {
     id: 8,
     name: 'Serpiente · 8',
-    subtitle: 'Camino estrecho y denso, 20 oleadas',
+    subtitle: 'Camino estrecho y denso, 15 oleadas',
     path: [[-1, 6], [14, 6], [14, 4], [5, 4], [5, 2], [14, 2], [14, 0], [20, 0]],
     towers: ['barbaro', 'elfo', 'alquimista', 'mago', 'lancero', 'monje', 'ingeniero', 'asedio', 'midas', 'nigromante', 'druida'],
     startSupplies: 440,
     hpScale: 2.2,
     ramp: true,
     countMul: 1.8,
-    waveCount: 20,
+    waveCount: 15,
     armoredFrom: 7,
     minis: M(2, 3, 4, 6),
     specials: [['toxico', 3], ['ignifugo', 4], ['rigido', 6]],
@@ -180,7 +180,7 @@ export const LEVELS = [
     hpScale: 1.9,
     ramp: true,
     countMul: 1.5,
-    waveCount: 20,
+    waveCount: 15,
     armoredFrom: 7,
     minis: M(2, 3, 4, 6),
     specials: [['toxico', 3], ['ignifugo', 5], ['rigido', 7]],
@@ -189,14 +189,14 @@ export const LEVELS = [
   {
     id: 10,
     name: 'Trono del Rey · 10 (Jefe)',
-    subtitle: 'El REY ZOMBI invoca refuerzos. 20 oleadas',
+    subtitle: 'El REY ZOMBI invoca refuerzos. 15 oleadas',
     path: [[-1, 0], [6, 0], [6, 3], [2, 3], [2, 6], [12, 6], [12, 2], [17, 2], [17, 5], [20, 5]],
     towers: ['barbaro', 'elfo', 'alquimista', 'mago', 'lancero', 'monje', 'ingeniero', 'asedio', 'midas', 'nigromante', 'druida'],
     startSupplies: 560,
     hpScale: 2.2,
     ramp: true,
     countMul: 1.6,
-    waveCount: 20,
+    waveCount: 15,
     armoredFrom: 7,
     minis: M(2, 3, 4, 4),
     boss: true,
@@ -206,63 +206,63 @@ export const LEVELS = [
   },
   // ------------------------------------------------------------------ 11 a 20 (mapa grande)
   {
-    id: 11, name: 'Cumbres · 11', subtitle: 'Mapa grande: serpiente larga, 20 oleadas',
+    id: 11, name: 'Cumbres · 11', subtitle: 'Mapa grande: serpiente larga, 15 oleadas',
     path: [[-1, 1], [26, 1], [26, 4], [3, 4], [3, 7], [26, 7], [26, 10], [30, 10]],
-    startSupplies: 600, hpScale: 2.4, countMul: 1.7, waveCount: 20, armoredFrom: 7, specials: SPEC,
+    startSupplies: 600, hpScale: 2.4, countMul: 1.7, waveCount: 15, armoredFrom: 7, specials: SPEC,
     minis: M(2, 3, 4, 6), ...BIG,
   },
   {
-    id: 12, name: 'Laberinto · 12', subtitle: 'Muchas curvas y minijefes en 20 oleadas',
+    id: 12, name: 'Laberinto · 12', subtitle: 'Muchas curvas y minijefes en 15 oleadas',
     path: [[-1, 5], [5, 5], [5, 1], [11, 1], [11, 9], [17, 9], [17, 2], [23, 2], [23, 10], [27, 10], [27, 5], [30, 5]],
-    startSupplies: 620, hpScale: 2.6, countMul: 1.8, waveCount: 20, armoredFrom: 7, specials: SPEC,
+    startSupplies: 620, hpScale: 2.6, countMul: 1.8, waveCount: 15, armoredFrom: 7, specials: SPEC,
     minis: M(2, 4, 5, 7), ...BIG,
   },
   {
-    id: 13, name: 'Bifurcación · 13', subtitle: 'BIFURCACIÓN grande al principio. 20 oleadas',
+    id: 13, name: 'Bifurcación · 13', subtitle: 'BIFURCACIÓN grande al principio. 15 oleadas',
     routes: [l13('N'), l13('S')],
-    startSupplies: 640, hpScale: 2.8, countMul: 1.9, waveCount: 20, armoredFrom: 7, specials: SPEC2,
+    startSupplies: 640, hpScale: 2.8, countMul: 1.9, waveCount: 15, armoredFrom: 7, specials: SPEC2,
     minis: M(2, 4, 6, 8), ...BIG,
   },
   {
-    id: 14, name: 'Tres pasillos · 14', subtitle: 'Tres tramos larguísimos y rectos. 20 oleadas',
+    id: 14, name: 'Tres pasillos · 14', subtitle: 'Tres tramos larguísimos y rectos. 15 oleadas',
     path: [[-1, 1], [27, 1], [27, 5], [2, 5], [2, 9], [30, 9]],
-    startSupplies: 660, hpScale: 3.0, countMul: 2.0, waveCount: 20, armoredFrom: 7, specials: SPEC2,
+    startSupplies: 660, hpScale: 3.0, countMul: 2.0, waveCount: 15, armoredFrom: 7, specials: SPEC2,
     minis: M(3, 5, 6, 9), ...BIG,
   },
   {
-    id: 15, name: 'Fortaleza · 15 (Jefe)', subtitle: 'Zombi Jefe gigante en la última de 20 oleadas',
+    id: 15, name: 'Fortaleza · 15 (Jefe)', subtitle: 'Zombi Jefe gigante en la última de las 15 oleadas',
     path: [[-1, 6], [4, 6], [4, 2], [10, 2], [10, 9], [16, 9], [16, 2], [22, 2], [22, 9], [26, 9], [26, 6], [30, 6]],
-    startSupplies: 700, hpScale: 3.2, countMul: 2.1, waveCount: 20, armoredFrom: 7, specials: SPEC2,
+    startSupplies: 700, hpScale: 3.2, countMul: 2.1, waveCount: 15, armoredFrom: 7, specials: SPEC2,
     minis: M(3, 5, 7, 8), boss: true, bossType: 'jefe', bossScale: 12, ...BIG,
   },
   {
-    id: 16, name: 'Rodeos · 16', subtitle: 'BIFURCACIÓN con grandes rodeos. 20 oleadas',
+    id: 16, name: 'Rodeos · 16', subtitle: 'BIFURCACIÓN con grandes rodeos. 15 oleadas',
     routes: [l16('N'), l16('S')],
-    startSupplies: 720, hpScale: 3.4, countMul: 2.2, waveCount: 20, armoredFrom: 7, specials: SPEC2,
+    startSupplies: 720, hpScale: 3.4, countMul: 2.2, waveCount: 15, armoredFrom: 7, specials: SPEC2,
     minis: M(3, 5, 7, 9), ...BIG,
   },
   {
-    id: 17, name: 'Dragón · 17', subtitle: 'Recorrido sinuoso gigantesco. 20 oleadas',
+    id: 17, name: 'Dragón · 17', subtitle: 'Recorrido sinuoso gigantesco. 15 oleadas',
     path: [[-1, 10], [8, 10], [8, 6], [3, 6], [3, 2], [15, 2], [15, 8], [21, 8], [21, 3], [27, 3], [27, 7], [30, 7]],
-    startSupplies: 740, hpScale: 3.6, countMul: 2.3, waveCount: 20, armoredFrom: 7, specials: SPEC2,
+    startSupplies: 740, hpScale: 3.6, countMul: 2.3, waveCount: 15, armoredFrom: 7, specials: SPEC2,
     minis: M(3, 6, 8, 10), ...BIG,
   },
   {
-    id: 18, name: 'Gran muralla · 18', subtitle: 'Tres pasadas por todo el mapa. 20 oleadas',
+    id: 18, name: 'Gran muralla · 18', subtitle: 'Tres pasadas por todo el mapa. 15 oleadas',
     path: [[-1, 2], [25, 2], [25, 5], [4, 5], [4, 8], [25, 8], [25, 11], [30, 11]],
-    startSupplies: 760, hpScale: 3.8, countMul: 2.4, waveCount: 20, armoredFrom: 7, specials: SPEC2,
+    startSupplies: 760, hpScale: 3.8, countMul: 2.4, waveCount: 15, armoredFrom: 7, specials: SPEC2,
     minis: M(4, 6, 9, 11), ...BIG,
   },
   {
-    id: 19, name: 'Cuatro caminos · 19', subtitle: 'DOS BIFURCACIONES seguidas y 20 oleadas',
+    id: 19, name: 'Cuatro caminos · 19', subtitle: 'DOS BIFURCACIONES seguidas y 15 oleadas',
     routes: [l19('N', 'N'), l19('N', 'S'), l19('S', 'N'), l19('S', 'S')],
-    startSupplies: 800, hpScale: 4.0, countMul: 2.5, waveCount: 20, armoredFrom: 7, specials: SPEC2,
+    startSupplies: 800, hpScale: 4.0, countMul: 2.5, waveCount: 15, armoredFrom: 7, specials: SPEC2,
     minis: M(4, 7, 10, 12), ...BIG,
   },
   {
-    id: 20, name: 'Trono del Emperador · 20 (Jefe)', subtitle: 'El EMPERADOR ZOMBI invoca legiones. 20 oleadas',
+    id: 20, name: 'Trono del Emperador · 20 (Jefe)', subtitle: 'El EMPERADOR ZOMBI invoca legiones. 15 oleadas',
     path: [[-1, 0], [6, 0], [6, 11], [12, 11], [12, 0], [18, 0], [18, 11], [24, 11], [24, 3], [28, 3], [28, 8], [30, 8]],
-    startSupplies: 900, hpScale: 4.3, countMul: 2.6, waveCount: 20, armoredFrom: 7, specials: SPEC2,
+    startSupplies: 900, hpScale: 4.3, countMul: 2.6, waveCount: 15, armoredFrom: 7, specials: SPEC2,
     minis: M(4, 8, 11, 14), boss: true, bossType: 'emperador', bossScale: 1.6, ...BIG,
   },];
 
@@ -271,14 +271,33 @@ export function rampOf(level, w) {
   return level.ramp ? (w - 1) / Math.max(1, level.waveCount - 1) : 1;
 }
 
+// Oleadas masivas: la ronda 10 (y la 20 en el modo infernal)
+export const isMassive = (level, w) => !level.tutorial && (w === 10 || (level.infernal && w === 20));
+
 // Grupos de zombis de la oleada w (1-based). La dificultad sube con cada oleada:
 // más cantidad, más zombis a la vez (hasta 3 de lado), tipos más duros y más vida (en GameScene).
+// level.waveCount es 15 (25 en el modo infernal, que se pasa con level.infernal = true).
 export function waveGroups(level, w) {
   const k = w - 1;
+  const N = level.waveCount;
+  // OLEADA MASIVA: 5 grupos grandes (8-10 zombis), uno detrás de otro y cada uno más fuerte que el anterior
+  if (isMassive(level, w)) {
+    const pool = ['normal', 'velocista', 'gladiador', 'paladin', 'blindado'].filter((t) => level.allow.includes(t));
+    const g = [];
+    for (let i = 0; i < 5; i++) {
+      const type = pool[Math.min(pool.length - 1, Math.floor((i * pool.length) / 5) + (i >= 3 ? 1 : 0))] || 'normal';
+      // 8-10 por grupo como mínimo; en los niveles con más zombis los grupos crecen en proporción
+      const size = (8 + Math.min(2, i * 0.5)) * Math.max(1, (level.countMul || 1) * (1 + 0.05 * k));
+      g.push({ type, n: Math.round(size), abreast: 3, gap: 0.6, hpMul: 1.15 + 0.2 * i, massive: true });
+      if (i === 2 || i === 4) g.push({ type: i === 4 && level.id >= 5 ? 'buitre' : 'cuervo', n: Math.round((4 + i) * Math.max(1, level.countMul || 1)), abreast: 2, gap: 0.6, hpMul: 1 + 0.15 * i, massive: true });
+    }
+    return g;
+  }
   // niveles 4 a 10: la cantidad extra de zombis crece a lo largo del nivel (empieza como el nivel anterior)
   const mul = 1 + ((level.countMul || 1) - 1) * rampOf(level, w);
   const abreast = Math.min(3, 1 + Math.floor(k / 2.5));
-  const g = [{ type: 'normal', n: Math.round((5 + Math.min(level.id, 6) * 2 + 2.6 * k) * mul), abreast, gap: 1.1 }];
+  const hard = level.id >= 7 ? 1 + 0.035 * k : 1; // a partir del nivel 7 la cantidad crece más entre rondas
+  const g = [{ type: 'normal', n: Math.round((5 + Math.min(level.id, 6) * 2 + 2.6 * k) * mul * hard), abreast, gap: 1.1 }];
   const ok = (t) => level.allow.includes(t);
   if (w >= 3 && ok('velocista')) g.push({ type: 'velocista', n: Math.round((2 + 1.6 * (w - 2)) * mul), abreast: Math.min(2, abreast), gap: 0.9 });
   if (w >= 4 && ok('gladiador')) g.push({ type: 'gladiador', n: Math.round((1 + 1.3 * (w - 3)) * mul), abreast: w >= 7 ? 2 : 1, gap: 1.8 });
@@ -290,14 +309,38 @@ export function waveGroups(level, w) {
     if (w >= from) g.push({ type, n: Math.max(1, Math.round((1 + 0.7 * (w - from)) * mul)), abreast: w >= from + 4 ? 2 : 1, gap: 2.0 });
   }
   // minijefes: se reparten entre los tipos indicados y salen entre el resto de la oleada
+  const miniWave = (m) => Math.max(2, Math.round((m.wave * N) / 20));
   for (const m of level.minis || []) {
-    if (m.wave !== w) continue;
+    if (miniWave(m) !== w) continue;
+    if (level.id >= 6) g.push({ type: 'jinete', n: 1, abreast: 1, gap: 3.5 }); // minijefe volador
     m.types.forEach((type, i) => {
       const n = Math.floor(m.n / m.types.length) + (i < m.n % m.types.length ? 1 : 0);
       if (n > 0) g.push({ type, n, abreast: 1, gap: 3.5 });
     });
   }
-  if (level.boss && w === level.waveCount) g.push({ type: level.bossType || 'jefe', n: 1, abreast: 1, gap: 1 });
+  // VOLADORES: tras el tutorial salen siempre; pocos hasta la ronda 5, luego más y más fuertes
+  if (level.tutorial) {
+    if (w >= 4) g.push({ type: 'cuervo', n: w - 1, abreast: 1, gap: 1.4 });
+  } else {
+    if (w < 5) g.push({ type: 'cuervo', n: 1 + Math.floor(w / 3), abreast: 1, gap: 2 });
+    else g.push({ type: 'cuervo', n: Math.round((2 + 0.8 * (w - 4)) * mul), abreast: 2, gap: 1.1 });
+    if (w >= 6 && level.id >= 3) g.push({ type: 'buitre', n: Math.max(1, Math.round((1 + 0.5 * (w - 6)) * mul)), abreast: 1, gap: 1.8 });
+    if (w >= 9 && level.id >= 5) g.push({ type: 'gargola', n: Math.max(1, Math.round((1 + 0.35 * (w - 9)) * mul)), abreast: 1, gap: 2.4 });
+  }
+  // OLEADA FINAL: más zombis y más fuertes, con enemigos maestro (el doble de resistencia), antes del jefe
+  if (!level.tutorial && w === N) {
+    const out = [];
+    for (const q of g) {
+      const def = q.type;
+      const n = Math.round(q.n * 1.3);
+      const nm = ['capitan', 'coloso', 'jinete'].includes(def) ? 0 : Math.max(1, Math.round(n * 0.4));
+      if (n - nm > 0) out.push({ ...q, n: n - nm, hpMul: 1.2 });
+      if (nm > 0) out.push({ ...q, type: def + '_m', n: nm, abreast: Math.min(2, q.abreast), gap: q.gap * 1.2, hpMul: 1.2 });
+    }
+    g.length = 0;
+    g.push(...out);
+  }
+  if (level.boss && w === N) g.push({ type: level.bossType || 'jefe', n: 1, abreast: 1, gap: 1 });
   return g;
 }
 

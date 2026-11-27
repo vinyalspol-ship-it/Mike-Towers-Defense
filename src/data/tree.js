@@ -28,7 +28,7 @@ export const COINS_PER_KILL = 0.6;
 const RICH = [
   ['rich_1', 'Víveres', '+40 suministros al empezar cada nivel. Cuesta 1 cerebro.', 1, 'brains'],
   ['rich_2', 'Víveres 2', 'Empiezas cada nivel con +60 suministros (en total; sustituye a Víveres). Cuesta 80 monedas.', 80],
-  ['rich_3', 'Mercader', 'Vender una defensa devuelve el 85%. Desbloquea el Rey Midas y las gemas.', 100],
+  ['rich_3', 'Mercader', 'Vender un héroe devuelve el 85%. Desbloquea el Rey Midas y las gemas.', 100],
 ];
 RICH.forEach(([id, name, desc, cost, cur], i) => {
   const base = at({ x: 0, y: 0 }, 180, 150 + i * 115);
@@ -162,8 +162,8 @@ for (const id of TOWER_ORDER) {
       add(`${t.short}_${P}${n + 1}`, {
         name: upg.name,
         desc: `${t.name} · camino ${P} (${path.name}) · nivel ${n + 1}: ${upg.name}. ${upg.desc}.`,
-        // las defensas que no son las 4 básicas cuestan un 350% más de oro en sus mejoras permanentes (x4,5)
-        cost: Math.round((n === 0 ? TIER1_COST[id] : TIER_COST[n] * COST_MULT[id]) * (BASIC4.includes(id) ? 1 : 4.5)),
+        // los héroes que no son los 4 básicos cuestan más oro en sus mejoras permanentes (x4,5, rebajado un 30%: x3,15)
+        cost: Math.round((n === 0 ? TIER1_COST[id] : TIER_COST[n] * COST_MULT[id]) * (BASIC4.includes(id) ? 1 : 4.5 * 0.7)),
         icon: String(n + 1),
         img: iconKeyFor(upg.name, upg.desc), // icono de la mejora
         kind: n === 3 ? 'big' : 'path',
@@ -216,7 +216,7 @@ const CHAIN = [
   ...[[1, 'brains'], [1000, 'coins'], [2, 'brains']].map(([cost, cur], i) => [
     'slot_' + (i + 4),
     `Equipo: espacio ${i + 4}`,
-    `Cuesta ${cost} ${cur === 'brains' ? (cost > 1 ? 'cerebros' : 'cerebro') : 'monedas'}. Podrás llevar ${i + 4} defensas distintas a cada batalla (se eligen en Equipo, en el menú principal).`,
+    `Cuesta ${cost} ${cur === 'brains' ? (cost > 1 ? 'cerebros' : 'cerebro') : 'monedas'}. Podrás llevar ${i + 4} héroes distintos a cada batalla (se eligen en Equipo, en el menú principal).`,
     cost,
     '🎒',
     0x80cbc4,
